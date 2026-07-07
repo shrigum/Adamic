@@ -1,0 +1,39 @@
+# CI is a backstop, not a build farm: it runs exactly the commands the
+# Definition of Done requires locally (docs/process/DEFINITION_OF_DONE.md).
+#
+# Per-push CI is Linux-only to stay well inside the free Actions tier on
+# private repos (macOS bills at 10x, Windows at 2x). The full three-OS
+# matrix — which pins platform-specific behavior like Windows
+# rename-over-existing (settings-file T4) and the macOS dyld/LC_UUID
+# toolchain issue — runs at release time in release.yml, before any
+# artifact is published.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Format check
+        run: |
+          UNFORMATTED="$(gofmt -l ./src ./tests)"
+          if [ -n "$UNFORMATTED" ]; then
+            echo "unformatted files:" && echo "$UNFORMATTED" && exit 1
+          fi
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Build
+        run: go build ./...

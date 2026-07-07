@@ -1,0 +1,67 @@
+# Triggered by pushing a release tag (docs/process/RELEASE_PROCESS.md, step 4).
+# Mirrors the local scripts/release.sh build exactly — CI is a convenience;
+# the same artifacts can be produced and attached offline with gh.
+#
+# The full three-OS test matrix runs here (not on every push) so each shipped
+# platform is verified right before its artifact is published, while keeping
+# day-to-day Actions usage in the free tier for private repos: Windows pins
+# the os.Rename-over-existing behavior the settings save path relies on
+# (settings-file T4 risk); macOS pins the darwin toolchain/dyld behavior.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write # create the GitHub Release and upload assets
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build all targets
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ./scripts/build.sh --all "$VERSION"
+          (cd dist && sha256sum adamic_* > SHA256SUMS)
+
+      - name: Extract changelog section for release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" {f=1; next}
+            /^## \[/ {f=0}
+            f' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "No CHANGELOG.md section for $VERSION" && exit 1
+          fi
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md
