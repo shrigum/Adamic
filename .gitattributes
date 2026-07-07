@@ -2,6 +2,11 @@
 # `gofmt -l` and diffs are stable across Windows/macOS/Linux contributors.
 *.go text eol=lf
 
+# Frontend sources: LF in the repo across platforms.
+*.js text eol=lf
+*.mjs text eol=lf
+*.json text eol=lf
+
 # Test fixtures are byte-exact: never apply line-ending or text munging to them.
 # A CRLF rewrite would corrupt a PDF and change the bytes a test asserts on.
 *.pdf binary

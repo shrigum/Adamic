@@ -54,6 +54,17 @@ rotates Unreleased into a versioned section when cutting a release (see
   - Committed **performance budgets** (`document` Open/Render/Scroll budgets, T11)
     set from real measurements and asserted by a test, so a rendering-speed
     regression fails CI (spec AC11).
+  - `src/app` — the **frontend binding layer** (T6): wraps the reader command
+    interface in JSON-serializable methods, returning page images as PNG data
+    URLs and open failures as displayable `{kind, message}` results. This is the
+    surface the Wails desktop shell binds; it holds no PDF logic and is unit
+    tested with a stub reader.
+  - `frontend/` — the framework-agnostic **viewer model and typed client**
+    (T7/T9): clamped next/prev, range-checked go-to-page, discrete and
+    fit-to-width/page zoom that recomputes on resize, and the virtualized
+    visible-page range, all unit-tested under `node --test`; plus a typed client
+    the Wails-generated bindings satisfy. The live desktop window and packaging
+    (the `wails3` alpha CLI parts) are the remaining, separately-tracked step.
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)

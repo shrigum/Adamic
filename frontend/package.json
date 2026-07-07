@@ -1,0 +1,10 @@
+{
+  "name": "adamic-frontend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Adamic reader frontend: framework-agnostic viewer/navigation model and the typed client for the Go core (package app) over the Wails boundary.",
+  "scripts": {
+    "test": "node --test"
+  }
+}

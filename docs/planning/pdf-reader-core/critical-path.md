@@ -49,10 +49,10 @@ graph LR
 | T3  | Core **Document Engine: open a PDF + report page count**, wrapping the chosen engine behind the T1 interface; invalid handle is a typed error. (AC1 partial) | 4 | T2 | ✅ | Med | **done** | — |
 | T4  | Core **render a single page at a requested scale** to an image the frontend can display; correct dimensions per fit inputs. (AC1, AC4 core) | 5 | T3 | ✅ | Med | **done** | — |
 | T5  | Core **virtualized render window**: render only visible + near-visible pages; bounded rendered-page count on a 500-page fixture (not = 500). (AC3, AC11 core) | 5 | T4 | ✅ | **High** | **done** (`RenderWindow`: LRU-bounded, look-ahead; 500-page bound test) | — |
-| T6  | **Wails v3 desktop shell** builds and runs; frontend scaffold can invoke a stub command over the T1 boundary and show its result. (ADR-0005; AC-all UI foundation) | 6 | T1 | – | **High** | todo | — |
-| T7  | **Frontend fixed-layout viewer**: renders returned page images faithfully; single-page and continuous-scroll modes over the virtualized window. (AC1, AC2, AC3) | 6 | T5, T6 | ✅ | Med | todo | — |
+| T6  | **Wails v3 desktop shell** builds and runs; frontend scaffold can invoke a stub command over the T1 boundary and show its result. (ADR-0005; AC-all UI foundation) | 6 | T1 | – | **High** | **partial** — binding layer (`src/app`: JSON/data-URL-friendly `Reader` surface) + typed frontend client done and tested; live `wails3` window/packaging deferred to an interactive session (see note below) | — |
+| T7  | **Frontend fixed-layout viewer**: renders returned page images faithfully; single-page and continuous-scroll modes over the virtualized window. (AC1, AC2, AC3) | 6 | T5, T6 | ✅ | Med | **model done** — `frontend/src/viewer.js` (modes + `renderRange` window) unit-tested; DOM view layer lands with the live shell | — |
 | T8  | **Thumbnails command + lazy panel data**: low-res page images produced lazily. (AC6 core) | 3 | T4 | – | Low | **done** (fixed-width `Thumbnail`; `reader.ThumbnailScale`) | — |
-| T9  | **Zoom, fit-to-width/page (recompute on resize), and navigation** (next/prev clamped, go-to-page with range check, thumbnail click). (AC2, AC4, AC5, AC6) | 5 | T7, T8, T10 | ✅ | Med | todo | — |
+| T9  | **Zoom, fit-to-width/page (recompute on resize), and navigation** (next/prev clamped, go-to-page with range check, thumbnail click). (AC2, AC4, AC5, AC6) | 5 | T7, T8, T10 | ✅ | Med | **model done** — clamped nav, validated go-to-page, discrete + fit zoom (resize-tracking) in `viewer.js`, unit-tested; wired to DOM with the live shell | — |
 | T10 | **Reading-position store**: narrow `Save/LoadReadingPosition` + minimal document record (identity = path + content hash), with a **file-backed** implementation behind the interface (spec A3/A4), swappable for SQLite later. (AC7, AC8 core) | 4 | T3 | – | Med | **done** (`src/library`: `Store` iface + `FileStore` + `Identify`) | — |
 | T11 | **Establish numeric perf budgets** (startup NFR-PERF-03, 500-page scroll) from the T2 spike measurements; commit them as named constants the tests assert against. (AC11 gate) | 2 | T2 | – | Low | **done** (`budgets.go`: Open/Render/Scroll budgets, asserted by `TestPerfBudgets`) | — |
 | T12 | **Wire reading-position save on close/navigate + restore on open**; never-opened doc opens at page 1. (AC7, AC8) | 3 | T9, T10 | ✅ | Med | **done** (engine restores on `Open`, persists on `SetPosition`; UI trigger on close/navigate lands with the shell) | — |
@@ -132,6 +132,18 @@ Path check (longest chain):
 - **T13 (Med)**: engines vary in how they signal a bad/encrypted file.
   *Mitigation*: normalize all engine failure modes into the typed error shape
   defined in T1; test with a corpus of deliberately broken fixtures.
+
+## Deferred: the live Wails shell (T6/T7/T9 remainder)
+
+The Go core, the bindable command surface (`src/app`), and the framework-agnostic
+frontend model + typed client (`frontend/`) are all built and unit-tested. What
+remains for T6/T7/T9 is the parts that need a running desktop window and the
+`wails3` alpha CLI (not installable/verifiable headless in CI): scaffolding the
+Wails app, wiring `viewer.js` to real DOM/canvas, generating bindings against
+`src/app`, and packaging. That work is a bounded next step for an interactive
+session; nothing in it re-opens a decision — the boundary and the logic it drives
+are fixed and tested. AC1–AC6 are covered at the model/binding level now and get
+their through-the-window verification when the shell lands (folds into T14).
 
 ## Parallelization notes
 
