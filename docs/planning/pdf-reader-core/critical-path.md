@@ -48,7 +48,7 @@ graph LR
 | T2  | **Engine decision + cgo spike (SPIKE).** ADR chooses MuPDF vs PDFium on licensing (NFR-LIC-01) + capability + build cost; spike proves one page of a real PDF renders to a bitmap **and** cross-compiles for win/mac/linux. Outcome: ADR committed + a green build on all 3 targets, or a documented failure that re-opens ADR-0005. (R-03; gates all rendering) | 8 | T1 | ✅ | **High** | **done** | — |
 | T3  | Core **Document Engine: open a PDF + report page count**, wrapping the chosen engine behind the T1 interface; invalid handle is a typed error. (AC1 partial) | 4 | T2 | ✅ | Med | **done** | — |
 | T4  | Core **render a single page at a requested scale** to an image the frontend can display; correct dimensions per fit inputs. (AC1, AC4 core) | 5 | T3 | ✅ | Med | **done** | — |
-| T5  | Core **virtualized render window**: render only visible + near-visible pages; bounded rendered-page count on a 500-page fixture (not = 500). (AC3, AC11 core) | 5 | T4 | ✅ | **High** | todo | — |
+| T5  | Core **virtualized render window**: render only visible + near-visible pages; bounded rendered-page count on a 500-page fixture (not = 500). (AC3, AC11 core) | 5 | T4 | ✅ | **High** | **done** (`RenderWindow`: LRU-bounded, look-ahead; 500-page bound test) | — |
 | T6  | **Wails v3 desktop shell** builds and runs; frontend scaffold can invoke a stub command over the T1 boundary and show its result. (ADR-0005; AC-all UI foundation) | 6 | T1 | – | **High** | todo | — |
 | T7  | **Frontend fixed-layout viewer**: renders returned page images faithfully; single-page and continuous-scroll modes over the virtualized window. (AC1, AC2, AC3) | 6 | T5, T6 | ✅ | Med | todo | — |
 | T8  | **Thumbnails command + lazy panel data**: low-res page images produced lazily. (AC6 core) | 3 | T4 | – | Low | todo | — |
@@ -115,11 +115,13 @@ Path check (longest chain):
   the rendering approach and re-opens ADR-0005 (fallback stack) — so it runs
   before T3–T5, T7, T13 are touched. **This is the stage-3 ADR the
   architecture-reviewer must produce/approve before T3 starts.**
-- **T5 (High, on CP)**: virtualized rendering is where scroll performance
-  (AC11) is won or lost, and it interacts with engine threading/caching.
-  *Mitigation*: build against the 500-page fixture from the start; cache
-  rendered pages with an LRU bounded by the budget from T11; degrade overlays
-  before core interaction (spec).
+- **T5 (High, on CP) — RETIRED.** Virtualized rendering is where scroll
+  performance (AC11) is won or lost. *Resolved*: `RenderWindow` renders only the
+  visible band plus a look-ahead and retains pages in an LRU bounded by a page
+  budget; a test scrolls a synthetic 500-page document and asserts the retained
+  count stays ≤ budget (never ~500), and a second test drives the real engine
+  over the Dutch fixture. The remaining open piece is the *numeric* budget,
+  which T11 sets from measurement; the mechanism that enforces it is done.
 - **T6 (High, off-path but foundational)**: Wails v3 is newer; desktop
   packaging maturity is a stated stack assumption. *Mitigation*: stand up the
   shell early (it only depends on T1), in parallel with the T2 spike, so any

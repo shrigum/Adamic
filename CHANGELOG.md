@@ -44,6 +44,12 @@ rotates Unreleased into a versioned section when cutting a release (see
     with no interface change (T10). The engine restores a document's position on
     open and persists it on change, so reopening a book returns to where you
     left off; a never-opened document opens at page 1 (T12).
+  - `src/document` **virtualized render window** (`RenderWindow`, T5): renders
+    only the visible pages plus a small look-ahead and keeps rendered pages in
+    an LRU bounded by a page budget, so scrolling a 500-page document stays
+    responsive and memory stays bounded (retained pages never approach the
+    document length). This retires the feature's last high-risk item; the
+    numeric budget itself is set later (T11).
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)
