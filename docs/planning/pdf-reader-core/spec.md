@@ -130,20 +130,24 @@ Each is observable and testable; the covering test is filled in at close-out
 (Definition of Done). Where a criterion depends on a numeric budget still to be
 set at design, it is written against the budget symbolically.
 
+Status legend: ✅ covered by an automated test; 🪟 logic covered now, final
+through-the-window check lands with the live Wails shell (see the critical-path
+"Deferred" note).
+
 | # | Criterion | Covering test |
 |---|---|---|
-| AC1 | Opening a valid multi-page PDF from a local path renders page 1 faithfully (engine raster) and reports the correct total page count. | |
-| AC2 | Single-page mode shows exactly one page and next/previous move by one page, clamped at first/last (no wrap, no out-of-range). | |
-| AC3 | Continuous-scroll mode renders pages in order and scrolls smoothly across the whole document; only visible/near-visible pages are rendered (verified by rendered-page count staying bounded on a 500-page fixture, not = 500). | |
-| AC4 | Zoom supports fit-to-width, fit-to-page, and explicit zoom levels; fit modes recompute correctly after a window resize. | |
-| AC5 | "Go to page N" navigates to page N for valid N; an out-of-range N is rejected with a user-visible message and no navigation. | |
-| AC6 | The thumbnail panel shows thumbnails for the document and clicking thumbnail N navigates to page N. | |
-| AC7 | Closing a document at page N (with a given scroll/zoom per A2) and reopening the same document restores the viewport to that position; a never-opened document opens at page 1. | |
-| AC8 | Reading position and minimal metadata persist across full app restarts (process exit), with no network access at any point. | |
-| AC9 | A corrupt/truncated PDF, a non-PDF file, and a missing file each produce a distinct, clear user-facing error naming the problem, and the app remains running and usable (no crash). | |
-| AC10 | A password-protected PDF is reported as such (graceful error per A7) without crashing. | |
-| AC11 | Opening a typical book PDF becomes interactive within the startup budget (NFR-PERF-03, budget set at design); scrolling a 500-page document stays within the responsiveness budget. Test asserts against the configured budget constant. | |
-| AC12 | No code path in this feature performs network I/O (inspection/test): the reader works fully with networking disabled. | |
+| AC1 | Opening a valid multi-page PDF from a local path renders page 1 faithfully (engine raster) and reports the correct total page count. | ✅ `document.TestEngineOpenAndPageCount`, `TestEngineRenderPageScales`; e2e `cli.TestReaderEndToEnd` |
+| AC2 | Single-page mode shows exactly one page and next/previous move by one page, clamped at first/last (no wrap, no out-of-range). | ✅ `frontend viewer.test.js` "next/prev clamp at the ends" |
+| AC3 | Continuous-scroll mode renders pages in order and scrolls smoothly across the whole document; only visible/near-visible pages are rendered (verified by rendered-page count staying bounded on a 500-page fixture, not = 500). | ✅ `document.TestRenderWindowBoundedOn500Pages`; 🪟 smooth-scroll feel through the window |
+| AC4 | Zoom supports fit-to-width, fit-to-page, and explicit zoom levels; fit modes recompute correctly after a window resize. | ✅ `frontend viewer.test.js` fit-width/fit-page/resize/zoom-stop tests; `document.TestEngineRenderPageScales` (fit-width raster) |
+| AC5 | "Go to page N" navigates to page N for valid N; an out-of-range N is rejected with a user-visible message and no navigation. | ✅ `frontend viewer.test.js` "goToPage rejects out-of-range" / "resolveUserPage" |
+| AC6 | The thumbnail panel shows thumbnails for the document and clicking thumbnail N navigates to page N. | ✅ `document.TestEngineThumbnails`, `app.TestThumbnailReturnsDataURL`; 🪟 click-to-navigate wiring |
+| AC7 | Closing a document at page N (with a given scroll/zoom per A2) and reopening the same document restores the viewport to that position; a never-opened document opens at page 1. | ✅ `document.TestEnginePositionRoundTrip`, `cli.TestReaderEndToEnd` |
+| AC8 | Reading position and minimal metadata persist across full app restarts (process exit), with no network access at any point. | ✅ `library.TestFileStorePersistsAcrossRestart`, `cli.TestReaderEndToEnd` |
+| AC9 | A corrupt/truncated PDF, a non-PDF file, and a missing file each produce a distinct, clear user-facing error naming the problem, and the app remains running and usable (no crash). | ✅ `document.TestEngineOpenErrors`, `app.TestOpenSoftErrorsAreNotGoErrors`, `cli.TestReaderSoftErrorsEndToEnd` |
+| AC10 | A password-protected PDF is reported as such (graceful error per A7) without crashing. | ✅ error classification `document.classifyOpen` + `app` message; covered by `app.TestOpenSoftErrorsAreNotGoErrors` (password kind). *(An encrypted fixture is added when one is sourced under a redistributable license.)* |
+| AC11 | Opening a typical book PDF becomes interactive within the startup budget (NFR-PERF-03, budget set at design); scrolling a 500-page document stays within the responsiveness budget. Test asserts against the configured budget constant. | ✅ `document.TestPerfBudgets` (asserts Open/Render/Scroll budget constants) |
+| AC12 | No code path in this feature performs network I/O (inspection/test): the reader works fully with networking disabled. | ✅ `cli.TestReaderNoNetworkImports` (static import inspection of reader/document/library/app) |
 
 **Error behavior summary** (per
 [CODING_STANDARDS.md](../../CODING_STANDARDS.md#error-handling)): a missing file,
@@ -172,3 +176,9 @@ block stage 2:
 ## Revision history
 
 - 2026-07-07 — Initial version, written at kickoff from REQ-1. Ready for stage 2.
+- 2026-07-07 — Stage 4 close-out (T15): filled the Covering-test column. All ACs
+  are covered by automated tests at the model/engine/binding level; AC3/AC6 keep
+  a small through-the-window check for when the live Wails shell lands (marked
+  🪟). AC10: password classification is tested via the error path; a
+  redistributable encrypted fixture is still to be sourced. No acceptance
+  criteria changed — this is coverage bookkeeping, not a scope amendment.

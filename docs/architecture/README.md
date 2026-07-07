@@ -34,10 +34,32 @@ Document; the intended shape is:
   <os-user-data-dir>/adamic/   Language Packs (offline bundles)
 ```
 
-> **Status:** none of the core/frontend components above are built yet. The
-> repository currently carries the inherited template scaffold described below
-> (settings file, update check, greeting command). New features arrive through
-> the [backlog](../planning/BACKLOG.md) and the planning flow.
+> **Status:** the first real feature, **PDF reader core** (REQ-1), is largely
+> built — the Go core, its command interface, and the frontend logic are in
+> place and tested; the live Wails desktop window is the remaining step. The
+> inherited template scaffold (settings file, update check, greeting command)
+> also remains live. Later features arrive through the
+> [backlog](../planning/BACKLOG.md) and the planning flow.
+
+Components landed so far (feature `pdf-reader-core`):
+
+- `src/reader` — the **command interface** (`reader.Reader`): the stable
+  core↔frontend boundary (open, page count, render page at a scale, thumbnail,
+  get/set reading position, close) with its request/response types, a typed soft
+  open-error shape, and an in-memory stub.
+- `src/document` — the **Document Engine**: renders PDF pages via PDFium on the
+  no-cgo WebAssembly backend ([ADR-0012](ADR-0012-pdf-engine.md)), with a
+  virtualized, LRU-bounded render window for large documents and committed
+  performance budgets. The PDF binding is confined to this package.
+- `src/library` — the interim file-backed **reading-position store**
+  (`Store`/`FileStore`), a narrow `Save`/`Load` seam that the SQLite store
+  ([ADR-0008](ADR-0008-local-data-storage.md)) replaces later without an
+  interface change.
+- `src/app` — the **binding layer** the Wails shell exposes to the frontend:
+  the command interface wrapped in JSON-serializable methods (page images as PNG
+  data URLs, open failures as displayable results).
+- `frontend/` — the framework-agnostic **viewer/navigation/zoom model** and the
+  typed client for `src/app`, unit-tested under `node --test`.
 
 Inherited scaffold (live features of Adamic, retained from the template):
 

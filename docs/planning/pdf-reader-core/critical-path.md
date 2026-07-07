@@ -57,8 +57,8 @@ graph LR
 | T11 | **Establish numeric perf budgets** (startup NFR-PERF-03, 500-page scroll) from the T2 spike measurements; commit them as named constants the tests assert against. (AC11 gate) | 2 | T2 | – | Low | **done** (`budgets.go`: Open/Render/Scroll budgets, asserted by `TestPerfBudgets`) | — |
 | T12 | **Wire reading-position save on close/navigate + restore on open**; never-opened doc opens at page 1. (AC7, AC8) | 3 | T9, T10 | ✅ | Med | **done** (engine restores on `Open`, persists on `SetPosition`; UI trigger on close/navigate lands with the shell) | — |
 | T13 | **Graceful error handling**: corrupt/truncated PDF, non-PDF, missing file, password-protected — each a distinct user-facing error, app stays up. (AC9, AC10) | 4 | T3 | – | Med | **done** (open-time classification into `*reader.OpenError`; frontend-facing wiring lands with the shell) | — |
-| T14 | **Integration + acceptance tests** driving the built app for AC1–AC12, incl. the no-network inspection (AC12) and budget assertions (AC11). | 6 | T12, T13, T11 | ✅ | Med | todo | — |
-| T15 | **Docs sync**: architecture overview (real components replace scaffold), glossary, changelog; engine ADR indexed. | 2 | T14 | – | Low | todo | — |
+| T14 | **Integration + acceptance tests** driving the built app for AC1–AC12, incl. the no-network inspection (AC12) and budget assertions (AC11). | 6 | T12, T13, T11 | ✅ | Med | **done** (`tests/reader_test.go`: e2e flow, soft errors, AC12 import scan) — through-the-window UI checks fold in with the live shell | — |
+| T15 | **Docs sync**: architecture overview (real components replace scaffold), glossary, changelog; engine ADR indexed. | 2 | T14 | – | Low | **done** (architecture README, glossary, spec AC coverage, backlog, changelog) | — |
 
 ## T2 spike result (C1 gate)
 

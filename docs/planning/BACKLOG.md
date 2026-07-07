@@ -26,7 +26,7 @@ second pack, REQ-9 aids) parallelizes once the REQ-5 data model is stable.
 
 | REQ | Feature (folder name) | Outcome | Status |
 |---|---|---|---|
-| REQ-1 | `pdf-reader-core` | Open and render a PDF in faithful fixed layout with navigation, zoom, and restored per-document reading position. | **in-flow** (spec written) |
+| REQ-1 | `pdf-reader-core` | Open and render a PDF in faithful fixed layout with navigation, zoom, and restored per-document reading position. | **in-flow** (core + frontend logic built and tested; live Wails desktop shell is the remaining step) |
 | REQ-2 | `text-extraction-mapping` | Extract correctly ordered Unicode across LTR/RTL/vertical/unspaced scripts, mapped to on-page coordinates; correct selection and copy. *(Root dependency; highest risk — front-loaded with a Stage 0 extraction spike.)* | backlog |
 | REQ-3 | `language-pack-runtime` | Load offline pack bundles via manifest; expose stable capability interfaces; disable only dependent features when a capability is absent. | backlog |
 | REQ-4 | `word-lookup` | Look up a word by tap/click/selection, resolve surface form → lemma, show definition and reading via the active pack. | backlog |
