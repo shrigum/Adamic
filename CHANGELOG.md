@@ -38,6 +38,12 @@ rotates Unreleased into a versioned section when cutting a release (see
     explicit zoom or fit-to-width/page (T4), and classify bad input (missing,
     non-PDF, corrupt/truncated, encrypted) into distinct soft errors that keep
     the app running (T13). The PDFium binding is confined to this package.
+  - `src/library` — the narrow, file-backed **reading-position store** (`Store`
+    interface + `FileStore` + content-hash document identity), swappable for the
+    SQLite store later ([ADR-0008](docs/architecture/ADR-0008-local-data-storage.md))
+    with no interface change (T10). The engine restores a document's position on
+    open and persists it on change, so reopening a book returns to where you
+    left off; a never-opened document opens at page 1 (T12).
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)

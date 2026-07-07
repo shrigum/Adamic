@@ -16,6 +16,7 @@ import (
 	"github.com/klippa-app/go-pdfium/requests"
 	"github.com/klippa-app/go-pdfium/webassembly"
 
+	"github.com/shrigum/adamic/src/library"
 	"github.com/shrigum/adamic/src/reader"
 )
 
@@ -31,18 +32,35 @@ import (
 type Engine struct {
 	pool     pdfium.Pool
 	instance pdfium.Pdfium
+	store    library.Store // reading-position persistence (T10); may be nil
 
 	mu   sync.Mutex
-	docs map[reader.DocumentID]references.FPDF_DOCUMENT
+	docs map[reader.DocumentID]openDoc
 	seq  uint64
+}
+
+// openDoc tracks one open document: its PDFium handle plus the library identity
+// under which its reading position is saved and restored.
+type openDoc struct {
+	ref references.FPDF_DOCUMENT
+	id  library.DocID
 }
 
 var _ reader.Reader = (*Engine)(nil)
 
-// NewEngine starts the PDFium wasm pool and returns an Engine. Call Shutdown to
-// release it. The single-instance pool matches the one-document-at-a-time model
-// (A8); a larger pool is a later performance lever (T11), not a correctness one.
+// NewEngine starts the PDFium wasm pool and returns an Engine backed by the
+// file-based reading-position store. Call Shutdown to release it. The
+// single-instance pool matches the one-document-at-a-time model (A8); a larger
+// pool is a later performance lever (T11), not a correctness one.
 func NewEngine() (*Engine, error) {
+	return NewEngineWithStore(library.FileStore{})
+}
+
+// NewEngineWithStore is NewEngine with an explicit position store, for tests
+// and for swapping in the SQLite-backed store later (ADR-0008). A nil store
+// disables position persistence (Open always starts at page 1, Save is a no-op)
+// — the reader still works, which is the soft-failure contract for persistence.
+func NewEngineWithStore(store library.Store) (*Engine, error) {
 	pool, err := webassembly.Init(webassembly.Config{MinIdle: 1, MaxIdle: 1, MaxTotal: 1})
 	if err != nil {
 		return nil, fmt.Errorf("start PDFium wasm pool: %w", err)
@@ -55,7 +73,8 @@ func NewEngine() (*Engine, error) {
 	return &Engine{
 		pool:     pool,
 		instance: instance,
-		docs:     map[reader.DocumentID]references.FPDF_DOCUMENT{},
+		store:    store,
+		docs:     map[reader.DocumentID]openDoc{},
 	}, nil
 }
 
@@ -63,8 +82,8 @@ func NewEngine() (*Engine, error) {
 // Shutdown the Engine must not be used.
 func (e *Engine) Shutdown() error {
 	e.mu.Lock()
-	for id, ref := range e.docs {
-		e.instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: ref})
+	for id, od := range e.docs {
+		e.instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: od.ref})
 		delete(e.docs, id)
 	}
 	e.mu.Unlock()
@@ -75,10 +94,12 @@ func (e *Engine) Shutdown() error {
 	return e.pool.Close()
 }
 
-// Open loads a PDF and returns its handle, page geometry, and (page-1) initial
-// position. Reading-position restore is wired in T12; for now every open starts
-// at the zero position. Soft failures are classified into *reader.OpenError so
-// the frontend can show a specific message and stay up (spec AC9/AC10).
+// Open loads a PDF and returns its handle, page geometry, and the reading
+// position to restore — the saved position if this document was read before,
+// or the zero position (page 1) if not (spec AC7). Soft failures are classified
+// into *reader.OpenError so the frontend can show a specific message and stay
+// up (spec AC9/AC10). A position-store failure is soft: the document still
+// opens, it just starts at page 1.
 func (e *Engine) Open(path string) (*reader.Document, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
@@ -112,17 +133,43 @@ func (e *Engine) Open(path string) (*reader.Document, error) {
 		return nil, &reader.OpenError{Path: abs, Kind: reader.OpenCorrupt, Err: err}
 	}
 
+	// Stable identity for position persistence (A4). A failure to hash is soft:
+	// the document opens without a persisted position rather than not at all.
+	docKey, keyErr := library.Identify(abs)
+
+	pos := e.restore(docKey, keyErr)
+
 	e.mu.Lock()
 	e.seq++
 	id := reader.DocumentID(fmt.Sprintf("doc-%d", e.seq))
-	e.docs[id] = doc.Document
+	e.docs[id] = openDoc{ref: doc.Document, id: docKey}
 	e.mu.Unlock()
 
 	return &reader.Document{
 		ID:       id,
 		Path:     abs,
 		PageInfo: reader.PageInfo{Count: pc.PageCount, Sizes: sizes},
+		Position: pos,
 	}, nil
+}
+
+// restore returns the saved reading position for a document, or the zero
+// position when there is no store, no identity, no saved record, or the store
+// read fails — all soft: a document must always open (spec AC7 / persistence
+// soft-failure contract). A stored page that is now out of range (the file
+// changed) is clamped to page 0 by returning zero.
+func (e *Engine) restore(key library.DocID, keyErr error) reader.Position {
+	if e.store == nil || keyErr != nil || key == "" {
+		return reader.Position{}
+	}
+	rec, ok, err := e.store.Load(key)
+	if err != nil || !ok {
+		return reader.Position{}
+	}
+	if rec.Page < 0 {
+		return reader.Position{}
+	}
+	return reader.Position{Page: rec.Page, OffsetY: rec.OffsetY}
 }
 
 // classifyOpen maps a PDFium OpenDocument error to the soft OpenError kind the
@@ -231,25 +278,42 @@ func (e *Engine) Thumbnail(id reader.DocumentID, page int) (image.Image, error) 
 	return e.RenderPage(id, page, reader.Scale{Zoom: 0.2})
 }
 
-// SetPosition and GetPosition are wired to the persistence store in T12; until
-// then the engine holds no position and reports the zero value. Defined now so
-// Engine satisfies reader.Reader (the frontend can call them without special
-// casing the interim state).
+// SetPosition saves the reading position for an open document so a later Open
+// restores it (spec AC7/AC8). With no store configured it is a no-op success.
+// A store write failure is returned for logging but the caller treats it as
+// soft — losing a saved position must not break reading.
 func (e *Engine) SetPosition(id reader.DocumentID, pos reader.Position) error {
-	if _, err := e.ref(id); err != nil {
+	od, err := e.lookup(id)
+	if err != nil {
 		return err
 	}
-	return nil // TODO(T12): persist via the reading-position store.
+	if e.store == nil || od.id == "" {
+		return nil
+	}
+	pc, _ := e.PageCount(id)
+	return e.store.Save(library.Record{
+		ID:         od.id,
+		PageCount:  pc,
+		Page:       pos.Page,
+		OffsetY:    pos.OffsetY,
+		LastOpened: time.Now().UTC(),
+	})
 }
 
+// GetPosition returns the saved position for an open document, or the zero
+// position if none is stored (or no store is configured).
 func (e *Engine) GetPosition(id reader.DocumentID) (reader.Position, error) {
-	return reader.Position{}, nil
+	od, err := e.lookup(id)
+	if err != nil {
+		return reader.Position{}, err
+	}
+	return e.restore(od.id, nil), nil
 }
 
 // Close releases one document. Closing an unknown/closed handle is a no-op.
 func (e *Engine) Close(id reader.DocumentID) error {
 	e.mu.Lock()
-	ref, ok := e.docs[id]
+	od, ok := e.docs[id]
 	if ok {
 		delete(e.docs, id)
 	}
@@ -257,20 +321,30 @@ func (e *Engine) Close(id reader.DocumentID) error {
 	if !ok {
 		return nil
 	}
-	if _, err := e.instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: ref}); err != nil {
+	if _, err := e.instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: od.ref}); err != nil {
 		return fmt.Errorf("close document: %w", err)
 	}
 	return nil
 }
 
+// ref returns the PDFium handle for an open document, or ErrClosedDocument.
 func (e *Engine) ref(id reader.DocumentID) (references.FPDF_DOCUMENT, error) {
+	od, err := e.lookup(id)
+	if err != nil {
+		return references.FPDF_DOCUMENT(""), err
+	}
+	return od.ref, nil
+}
+
+// lookup returns the full open-document record for id, or ErrClosedDocument.
+func (e *Engine) lookup(id reader.DocumentID) (openDoc, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	ref, ok := e.docs[id]
+	od, ok := e.docs[id]
 	if !ok {
-		return references.FPDF_DOCUMENT(""), reader.ErrClosedDocument
+		return openDoc{}, reader.ErrClosedDocument
 	}
-	return ref, nil
+	return od, nil
 }
 
 // cloneImage returns a deep copy of img as an *image.RGBA, so the returned image

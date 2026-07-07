@@ -5,14 +5,18 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shrigum/adamic/src/library"
 	"github.com/shrigum/adamic/src/reader"
 )
 
 // newTestEngine starts a real PDFium wasm engine for the test and shuts it down
 // on cleanup. Engine construction is a few hundred ms (wasm module init), so
-// tests share one engine per test function rather than per subtest.
+// tests share one engine per test function rather than per subtest. The
+// position store is redirected to a temp dir so tests never touch a real user
+// directory (CLAUDE.md).
 func newTestEngine(t *testing.T) *Engine {
 	t.Helper()
+	t.Setenv(library.EnvConfigDir, t.TempDir())
 	e, err := NewEngine()
 	if err != nil {
 		t.Fatalf("NewEngine: %v", err)
@@ -127,6 +131,68 @@ func TestEngineClosedDocument(t *testing.T) {
 	// Double close is a no-op.
 	if err := e.Close(doc.ID); err != nil {
 		t.Errorf("double Close: want nil, got %v", err)
+	}
+}
+
+// TestEnginePositionRoundTrip is T12/AC7-AC8: a position saved for a document
+// is restored the next time that document is opened, and a never-opened
+// document opens at page 1 (zero position). It uses a temp-dir-backed store so
+// nothing touches a real user directory.
+func TestEnginePositionRoundTrip(t *testing.T) {
+	t.Setenv(library.EnvConfigDir, t.TempDir())
+
+	e, err := NewEngineWithStore(library.FileStore{})
+	if err != nil {
+		t.Fatalf("NewEngineWithStore: %v", err)
+	}
+	t.Cleanup(func() { e.Shutdown() })
+
+	// First open: never read before → page 1 (zero position), spec AC7.
+	doc, err := e.Open(fixturePath(fixture))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	if (doc.Position != reader.Position{}) {
+		t.Errorf("first open position = %+v, want zero (page 1)", doc.Position)
+	}
+
+	want := reader.Position{Page: 2, OffsetY: 0.4}
+	if err := e.SetPosition(doc.ID, want); err != nil {
+		t.Fatalf("SetPosition: %v", err)
+	}
+	e.Close(doc.ID)
+
+	// Reopen the same file: position is restored (persisted to disk, so this
+	// also stands in for AC8's across-restart guarantee — the store read is
+	// from disk, not engine memory).
+	reopened, err := e.Open(fixturePath(fixture))
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	if reopened.Position != want {
+		t.Errorf("restored position = %+v, want %+v (spec AC7/AC8)", reopened.Position, want)
+	}
+}
+
+// TestEngineNilStoreStillOpens proves the persistence soft-failure contract:
+// with no store, a document still opens (at page 1) and SetPosition is a
+// no-op success rather than an error.
+func TestEngineNilStoreStillOpens(t *testing.T) {
+	e, err := NewEngineWithStore(nil)
+	if err != nil {
+		t.Fatalf("NewEngineWithStore(nil): %v", err)
+	}
+	t.Cleanup(func() { e.Shutdown() })
+
+	doc, err := e.Open(fixturePath(fixture))
+	if err != nil {
+		t.Fatalf("Open with nil store: %v", err)
+	}
+	if (doc.Position != reader.Position{}) {
+		t.Errorf("nil-store open position = %+v, want zero", doc.Position)
+	}
+	if err := e.SetPosition(doc.ID, reader.Position{Page: 1}); err != nil {
+		t.Errorf("SetPosition with nil store should be a no-op success, got %v", err)
 	}
 }
 
