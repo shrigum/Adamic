@@ -7,20 +7,19 @@
   ([design-review.md](design-review.md)); OCR engine decided
   ([ADR-0014](../../architecture/ADR-0014-ocr-engine.md): Tesseract baseline).
   **C1 gate: the T2 recognition spike must pass before T4+ recognizer code
-  starts.** Per condition **C6, T12 (per-region review UI) is deferred to a
-  fast-follow** — its model/store/binding (T8/T11) still ship in v1 — so the
-  active critical path is the **47h** variant ending T11 → T13 → T14.
+  starts.** Condition **C6 resolved — the founder chose the per-region review UI
+  (T12) IN v1**, so the active critical path is the **49h** variant with T12 on
+  the path.
 
-> **Critical path (47h): T1 → T2 → T4 → T5 → T7 → T9 → T11 → T13 → T14 → T16**
-> (active variant — T12 review UI deferred per design-review condition C6.)
+> **Critical path (49h): T1 → T2 → T4 → T5 → T7 → T9 → T11 → T12 → T14 → T16**
+> (T12 review UI is in v1 per the founder's C6 resolution.)
 > The OCR-engine spike (T2) is High-risk and built first: it proves the chosen
 > Tesseract integration recognizes the Dutch fixture, measures per-page latency
 > and bundle size, and confirms the local-first/hardware-floor fit. If it fails,
 > [ADR-0014](../../architecture/ADR-0014-ocr-engine.md) re-opens before
-> downstream recognition, persistence, and UI work is wasted. **If T12 (review
-> UI) is pulled back into v1, the tail becomes T11 → T12 → T14 and the path rises
-> to 49h.** Off-path tasks (T3 detection, T6 store, T8 corrections model, T10
-> license manifest, T15 budget) parallelize once their dep lands.
+> downstream recognition, persistence, and UI work is wasted. Off-path tasks
+> (T3 detection, T6 store, T8 corrections model, T10 license manifest, T13 error
+> wiring, T15 budget) parallelize once their dep lands.
 
 ## Task graph
 
@@ -40,9 +39,10 @@ graph LR
   T8[T8 correction override model] --> T9
   T6 --> T8
   T9 --> T11[T11 app binding: OCR commands over the boundary]
-  T11 -.deferred C6.-> T12[T12 frontend: review/correct UI - fast-follow]
+  T11 --> T12[T12 frontend: trigger + progress + per-region review/correct]
   T11 --> T13[T13 graceful failure + offline wiring end to end]
-  T13 --> T14[T14 integration + acceptance tests AC1-AC12]
+  T12 --> T14[T14 integration + acceptance tests AC1-AC12]
+  T13 --> T14
   T15 --> T14
   T10[T10 engine+model license manifest] --> T14
   T14 --> T16[T16 docs sync: glossary, changelog, ADR indexed]
@@ -63,25 +63,24 @@ graph LR
 | T9  | **Cache & re-OCR policy** (spec A5, AC4, AC5): a recognized document's result is reused on reopen (no re-run); re-OCR of a page is an **explicit** op replacing that page's stored result; reads apply corrections (T8) over engine text. | 4 | T7, T6, T8 | ✅ | Med | todo | — |
 | T10 | **License/attribution manifest** (spec AC11, NFR-LIC-01): record the shipped OCR engine and any bundled model/weights with their licenses in the project component/attribution manifest; a test asserts the entry exists and the license is redistribution-compatible. | 2 | T2 | – | Low | todo | — |
 | T11 | **App binding**: expose the OCR commands the UI needs over the `src/app` JSON boundary — detect/needs-OCR, start run (with progress/cancel), get result (units+boxes+corrections), correct a unit, re-OCR a page. JSON-serializable DTOs; no engine logic. (AC-all UI foundation) | 4 | T9 | ✅ | Med | todo | — |
-| T12 | **Frontend: trigger + progress + per-region review/correction**: a "Recognize text" action, progress/cancel UI, and per-region review where a recognized unit's text is shown and correctable (spec A6, A9, AC6). Uses T11. **DEFERRED to a fast-follow (design-review C6)** — the correction model/store (T8) and binding (T11) still ship in v1, satisfying AC6's storage behavior; only the on-screen review is deferred. | 6 | T11 | deferred | Med | todo | — |
-| T13 | **Graceful failure + offline wiring end to end**: every soft path (undetectable text, corrupt image, engine/model failure, missing store) is reported and recoverable through the binding; the reader stays up (AC8); no network anywhere in the OCR path (AC10). **Offline inspection covers the Tesseract subprocess, not just Go imports (C5).** | 4 | T11 | ✅ | Med | todo | — |
-| T14 | **Integration + acceptance tests** driving OCR of the Dutch fixture end to end for AC1–AC12, incl. the no-network inspection (AC10), license-manifest check (AC11), and the budget assertion (AC9). AC6 verified at the model level (T8) in v1; the review-UI portion lands with T12. | 6 | T13, T15, T10 | ✅ | Med | todo | — |
+| T12 | **Frontend: trigger + progress + per-region review/correction**: a "Recognize text" action, progress/cancel UI, and per-region review where a recognized unit's text is shown and correctable (spec A6, A9, AC6). Uses T11. **In v1 (C6 resolved).** Scoped per C6 guard to per-region view + inline correction — no bulk find/replace or document re-flow. | 6 | T11 | ✅ | Med | todo | — |
+| T13 | **Graceful failure + offline wiring end to end**: every soft path (undetectable text, corrupt image, engine/model failure, missing store) is reported and recoverable through the binding; the reader stays up (AC8); no network anywhere in the OCR path (AC10). **Offline inspection covers the Tesseract subprocess, not just Go imports (C5).** | 4 | T11 | – | Med | todo | — |
+| T14 | **Integration + acceptance tests** driving OCR of the Dutch fixture end to end for AC1–AC12, incl. the no-network inspection (AC10), license-manifest check (AC11), and the budget assertion (AC9). | 6 | T13, T12, T15, T10 | ✅ | Med | todo | — |
 | T15 | **Establish per-page perf budget** from the T2 spike measurements; commit as a named constant the tests assert against (spec A8, AC9). Mirrors pdf-reader-core's budgets task. | 2 | T2 | – | Low | todo | — |
 | T16 | **Docs sync**: glossary (`OCR`, `recognized unit`, `text layer`), architecture overview (new OCR component + store), changelog; engine ADR indexed. | 2 | T14 | – | Low | todo | — |
 
 Path check (longest chain):
-- **Active CP (T12 deferred per C6): T1→T2→T4→T5→T7→T9→T11→T13→T14→T16** =
-  3+8+6+5+5+4+4+4+6+2 = **47h**.
+- **Active CP (T12 review UI in v1): T1→T2→T4→T5→T7→T9→T11→T12→T14→T16** =
+  3+8+6+5+5+4+4+6+6+2 = **49h**.
+- Tail into T14: T12 branch (T11→T12 = 4+6) **binds over** T13 branch
+  (T11→T13 = 4+4), so the critical tail runs through **T12**.
 - Feeder checks (all shorter than the binding predecessor, so none bind):
   - Into T5: T3 branch (T1→T3 = 3+4 = 7) < T4 branch (T1→T2→T4 = 3+8+6 = 17) →
     **T4 binds T5** ✔.
   - Into T7/T9: T6 branch (T1→T6 = 3+5 = 8) and T8 (T1→T6→T8 = 11) < the
     recognition chain reaching T9 (…→T7 = 31) → T6/T8 are feeders ✔.
-  - Into T14: T15 (T1→T2→T15 = 13) and T10 (T1→T2→T10 = 13) < the CP reaching
-    T14 (…→T13→T14 = 41) → feeders ✔.
-- **Variant if T12 (review UI) is pulled into v1**: the tail becomes
-  T11→T12→T14 (T12's 6h binds over T13's 4h) and the CP rises to **49h**
-  (T1→T2→T4→T5→T7→T9→T11→T12→T14→T16 = 3+8+6+5+5+4+4+6+6+2).
+  - Into T14: T15/T10 (T1→T2→· = 13 each) and T13 (…→T11→T13 = 41) < the CP
+    reaching T14 (…→T12→T14 = 47) → feeders ✔.
 
 ## Risks
 
@@ -116,11 +115,13 @@ Path check (longest chain):
 - **T6 (Med)**: the on-disk OCR schema is a near-term SemVer surface (spec open
   Q4). *Mitigation*: version the envelope from day one (as `library`/`settings`
   do); keep the interface narrow so the SQLite swap is drop-in.
-- **T12 (Med, off-path, deferrable)**: per-region review UI is the largest,
-  most-cuttable scope. *Mitigation / decision needed at stage 3 (spec open Q3)*:
-  ship OCR-without-review first and land review as a fast-follow if schedule
-  pressure appears — the correction **model** (T8) and binding (T11) still ship,
-  so review is purely a frontend addition later.
+- **T12 (Med, on CP — in v1 per the founder's C6 resolution)**: per-region
+  review UI is the largest UI scope and now sits on the critical path.
+  *Mitigation*: it is a thin frontend layer over the already-shipped correction
+  **model** (T8) and binding (T11) — build those first (they de-risk T12), and
+  scope T12 tightly to per-region view + inline correction (no bulk find/replace
+  or re-flow, per the C6 guard). If schedule pressure appears, it remains the
+  natural thing to trim to a fast-follow (CP would drop to 47h).
 
 ## Parallelization notes
 
@@ -132,10 +133,10 @@ Path check (longest chain):
 - **T10 (license manifest)** and **T15 (perf budget)** unlock as soon as the T2
   spike lands and are Low-risk, off-path — good first tasks for a new
   contributor; neither shares files with the CP recognition tasks.
-- **T12 (review UI)** is off-path and the designated **deferral valve**: if the
-  release needs to ship sooner, cut T12 to a fast-follow (its model/binding deps
-  T8/T11 remain), dropping the CP from 49h to 47h with no AC lost except the
-  review-UI portion of AC6 (the correction *model* still satisfies AC6's storage
-  behavior; only the on-screen review is deferred).
+- **T12 (review UI)** is on the critical path (in v1). It remains the natural
+  **deferral valve** if schedule pressure appears — cutting it to a fast-follow
+  drops the CP to 47h with no AC lost except the on-screen review portion (its
+  model/binding deps T8/T11 already satisfy AC6's storage behavior) — but the
+  founder has chosen to ship it in v1.
 - **T16 (docs)** is off-path and gates merge (Definition of Done), not other
   implementation.
