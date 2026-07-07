@@ -111,6 +111,7 @@ makes the call during design review.
 | [0011](ADR-0011-language-pack-boundary.md) | Language Pack plugin boundary | Accepted | 2026-07-07 |
 | [0012](ADR-0012-pdf-engine.md) | PDF rendering engine: PDFium via klippa-app/go-pdfium | Accepted (resolves A&D §4.1; refines 0005's cgo assumption) | 2026-07-07 |
 | [0013](ADR-0013-mvp-language-dutch.md) | MVP launch language: Dutch | Accepted (supersedes 0006) | 2026-07-07 |
+| [0014](ADR-0014-ocr-engine.md) | OCR engine: Tesseract (baseline) behind a Recognizer seam | Accepted (refines 0012's no-cgo posture) | 2026-07-07 |
 
 *(Keep this table sorted by number. Adding a row here is part of merging any ADR —
 the docs-maintainer skill checks it.)*
