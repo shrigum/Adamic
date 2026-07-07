@@ -82,6 +82,23 @@ go test ./...
 ./scripts/build.sh                  # or scripts\build.ps1 on Windows -> dist/adamic
 ```
 
+### Run the desktop reader
+
+The PDF reader (REQ-1) is a Wails v3 desktop app. It needs the
+[WebView2 runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+(preinstalled on current Windows) — no other dependency; the PDF engine runs on
+WebAssembly, so there is no cgo and no C toolchain.
+
+```bash
+./scripts/build-desktop.sh          # -> dist/Adamic.exe (windowed, single file)
+```
+
+Then run `dist/Adamic.exe`, click **Open PDF…**, and read: page navigation,
+zoom, fit-to-width/page, a thumbnail rail, and per-document reading position.
+Regenerating the frontend bindings (only when a bound Go method signature
+changes) needs the `wails3` CLI:
+`go install github.com/wailsapp/wails/v3/cmd/wails3@latest`.
+
 ## Building a release
 
 Releases follow [SemVer](https://semver.org/) and the exact steps in

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Adamic</title>
+  <style>
+    :root {
+      --bg: #1e1f22; --panel: #2b2d31; --line: #3a3d43;
+      --fg: #e6e6e6; --muted: #9aa0a6; --accent: #4a90d9; --err: #e06c6c;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      display: flex; flex-direction: column; height: 100vh;
+      font: 14px/1.4 system-ui, sans-serif; color: var(--fg); background: var(--bg);
+    }
+    #toolbar {
+      display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+      background: var(--panel); border-bottom: 1px solid var(--line); flex: 0 0 auto;
+    }
+    #toolbar button {
+      background: #3a3d43; color: var(--fg); border: 1px solid var(--line);
+      border-radius: 6px; padding: 6px 10px; cursor: pointer;
+    }
+    #toolbar button:hover:not(:disabled) { background: #45484f; }
+    #toolbar button:disabled { opacity: .4; cursor: default; }
+    #toolbar .sep { width: 1px; height: 22px; background: var(--line); margin: 0 4px; }
+    #open { background: var(--accent); border-color: var(--accent); font-weight: 600; }
+    #pageInput { width: 52px; text-align: center; padding: 6px; border-radius: 6px;
+      border: 1px solid var(--line); background: #1e1f22; color: var(--fg); }
+    #zoomLabel, #pageCount { color: var(--muted); min-width: 44px; text-align: center; }
+    #status { margin-left: auto; color: var(--muted); max-width: 40%;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #status.error { color: var(--err); }
+    #main { display: flex; flex: 1 1 auto; min-height: 0; }
+    #thumbs {
+      flex: 0 0 132px; overflow-y: auto; background: var(--panel);
+      border-right: 1px solid var(--line); padding: 10px; display: flex;
+      flex-direction: column; gap: 10px;
+    }
+    .thumb {
+      position: relative; border: 2px solid transparent; border-radius: 4px;
+      cursor: pointer; background: #1e1f22; min-height: 40px; overflow: hidden;
+    }
+    .thumb:hover { border-color: var(--accent); }
+    .thumb img { display: block; width: 100%; }
+    .thumb span {
+      position: absolute; bottom: 2px; right: 4px; font-size: 11px; color: #fff;
+      background: rgba(0,0,0,.6); padding: 0 5px; border-radius: 3px;
+    }
+    #pages {
+      flex: 1 1 auto; overflow-y: auto; padding: 20px; display: flex;
+      flex-direction: column; align-items: center; gap: 16px; scroll-behavior: smooth;
+    }
+    .page {
+      background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.5); width: min(100%, 900px);
+      display: flex; align-items: center; justify-content: center; color: #333;
+    }
+    .page img { display: block; width: 100%; height: auto; }
+    #empty { margin: auto; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="open">Open PDF…</button>
+    <span class="sep"></span>
+    <button id="prev" disabled>‹ Prev</button>
+    <input id="pageInput" type="number" min="1" value="0" />
+    <span id="pageCount">of –</span>
+    <button id="next" disabled>Next ›</button>
+    <span class="sep"></span>
+    <button id="zoomOut">–</button>
+    <span id="zoomLabel">100%</span>
+    <button id="zoomIn">+</button>
+    <button id="fitWidth">Fit width</button>
+    <button id="fitPage">Fit page</button>
+    <div id="status"></div>
+  </div>
+  <div id="main">
+    <div id="thumbs"></div>
+    <div id="pages">
+      <div id="empty">Open a PDF to begin.</div>
+    </div>
+  </div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

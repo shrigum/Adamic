@@ -63,8 +63,14 @@ rotates Unreleased into a versioned section when cutting a release (see
     (T7/T9): clamped next/prev, range-checked go-to-page, discrete and
     fit-to-width/page zoom that recomputes on resize, and the virtualized
     visible-page range, all unit-tested under `node --test`; plus a typed client
-    the Wails-generated bindings satisfy. The live desktop window and packaging
-    (the `wails3` alpha CLI parts) are the remaining, separately-tracked step.
+    the Wails-generated bindings satisfy.
+  - `desktop/` — the **Wails v3 desktop shell** (T6/T7/T9): a windowed app that
+    binds the reader and a native file-open dialog, serves the frontend, and
+    renders PDFs in a WebView2 window with navigation, zoom, fit modes, a
+    thumbnail rail, and restored reading position. Builds to a single
+    `dist/Adamic.exe` with `CGO_ENABLED=0` (PDFium on WebAssembly) via
+    `scripts/build-desktop.sh`. Verified live: opening the Dutch A1 fixture
+    renders page 1 through the full frontend → binding → engine path.
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)
