@@ -1,6 +1,6 @@
 # ADR-0006: MVP launch language is Japanese
 
-- **Status**: Accepted
+- **Status**: Superseded by [ADR-0013](ADR-0013-mvp-language-dutch.md) (MVP language changed to Dutch)
 - **Date**: 2026-07-07
 - **Feature/trigger**: project kickoff; baselined Architecture and Design Document §5
 - **Deciders**: project maintainers (technical lead, Language Pack author)

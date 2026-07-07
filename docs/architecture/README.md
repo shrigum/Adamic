@@ -103,13 +103,14 @@ makes the call during design review.
 | [0003](ADR-0003-update-check.md) | Opt-in update check via the GitHub Releases API | Accepted (reinforced by local-first) | 2026-07-07 |
 | [0004](ADR-0004-settings-schema-version.md) | Settings file carries a schema version (envelope) | Accepted; superseded for structured data by 0008 | 2026-07-07 |
 | [0005](ADR-0005-platform-stack.md) | Platform/stack: Go + web frontend + Wails v3, desktop only | Accepted (supersedes 0001's CLI/no-GUI posture) | 2026-07-07 |
-| [0006](ADR-0006-mvp-language.md) | MVP launch language: Japanese | Accepted | 2026-07-07 |
+| [0006](ADR-0006-mvp-language.md) | MVP launch language: Japanese | Superseded by 0013 | 2026-07-07 |
 | [0007](ADR-0007-reader-layout.md) | Faithful fixed-layout reader for MVP; reflow later | Accepted | 2026-07-07 |
 | [0008](ADR-0008-local-data-storage.md) | Local data storage: SQLite; annotations as standard PDF objects | Accepted (supersedes 0002 and 0004) | 2026-07-07 |
 | [0009](ADR-0009-familiarity-by-lemma.md) | Familiarity keyed by lemma | Accepted | 2026-07-07 |
 | [0010](ADR-0010-spaced-repetition.md) | Spaced repetition: export-first, in-app review later | Accepted | 2026-07-07 |
 | [0011](ADR-0011-language-pack-boundary.md) | Language Pack plugin boundary | Accepted | 2026-07-07 |
 | [0012](ADR-0012-pdf-engine.md) | PDF rendering engine: PDFium via klippa-app/go-pdfium | Accepted (resolves A&D §4.1; refines 0005's cgo assumption) | 2026-07-07 |
+| [0013](ADR-0013-mvp-language-dutch.md) | MVP launch language: Dutch | Accepted (supersedes 0006) | 2026-07-07 |
 
 *(Keep this table sorted by number. Adding a row here is part of merging any ADR —
 the docs-maintainer skill checks it.)*

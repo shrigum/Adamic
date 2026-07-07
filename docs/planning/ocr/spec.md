@@ -101,22 +101,28 @@ with the requirement/feature that owns it or the reason it is deferred.
 - **Performance is bounded and cancellable.** OCR is expensive; recognizing a
   whole book must not freeze the app or block reading. Numeric budgets are set
   at design after a measurement spike (A8), as with the reader's budgets.
+- **Bounded install size and a modest hardware floor.** Adamic is a desktop app
+  distributed as a GitHub Release; the current binary is ~22 MB. An OCR engine
+  that adds gigabytes of runtime/model weights or **requires a GPU** to be usable
+  changes what machine can run the product. The MVP OCR engine must run
+  acceptably on a **typical CPU-only laptop** with a bundle size a desktop user
+  will tolerate. A heavier, higher-accuracy engine (e.g. a VLM) is acceptable
+  only as an **optional** backend, not the baseline. This constraint is a
+  first-order input to the stage-3 engine ADR (see open question 1).
 
 ## Assumptions
 
 Ambiguities resolved as explicit, overridable assumptions (amend this spec to
 change one). Low-confidence items are flagged for confirmation before stage 4.
 
-- **A1 — Scope is Latin-script printed OCR for the first feature; the engine
-  must be architected so additional scripts (incl. Japanese/CJK, the MVP
-  language per [ADR-0006](../../architecture/ADR-0006-mvp-language.md)) are added
-  without redesign.** Rationale: the concrete fixture and the immediate need are
-  Dutch (Latin); shipping and testing Latin OCR end-to-end de-risks the pipeline.
-  CJK OCR (different models, vertical text, no word spaces) is real additional
-  work and is **deferred to a follow-up**, not dropped. *(low confidence —
-  confirm whether Japanese OCR must be in this feature given ADR-0006 names
-  Japanese as the MVP language; if yes, scope and the engine bar grow. This is
-  the single biggest scope lever in the spec.)*
+- **A1 — Scope is Latin-script printed OCR (Dutch), confirmed as the MVP
+  language by [ADR-0013](../../architecture/ADR-0013-mvp-language-dutch.md)
+  (which supersedes ADR-0006's Japanese choice).** The engine must be architected
+  so additional scripts (incl. Japanese/CJK) can be added later without redesign,
+  but CJK OCR (different models, vertical text, no word spaces) is **out of scope
+  for this feature** and comes with a later, harder Language Pack. This resolves
+  what was previously the spec's biggest open scope lever: the founder chose
+  accuracy on the in-hand Dutch corpus over front-loading the hardest typology.
 - **A2 — OCR emits "recognized units" = {text string, bounding box, confidence,
   and the engine's line/block grouping id if any}; it does NOT own global
   reading order or selection.** Correct ordering across scripts, selection, and
@@ -219,16 +225,36 @@ Recorded so critical-path-planner and architecture-reviewer pick them up; none
 block stage 2:
 
 1. **OCR engine ADR** (the load-bearing decision): which offline OCR engine,
-   under the twin filters of **license** (engine *and* model/weights compatible
-   with MIT free-redistribution, NFR-LIC-01) and **cgo/single-binary** (may OCR
-   reintroduce cgo/R-03, or must it stay no-cgo — pure-Go, wasm, or a bundled
-   subprocess?). Candidates to weigh with honest trade-offs include Tesseract
-   (native/cgo; Apache-2.0 engine; model licenses vary), pure-Go/wasm OCR
-   options, and a bundled offline engine invoked as a subprocess. **Must be
-   resolved before implementation (T-* recognition tasks).**
-2. **Language scope (A1)**: Latin-only first vs. Japanese/CJK in this feature,
-   given ADR-0006 names Japanese as the MVP language. Directly sizes the engine
-   bar and the task graph.
+   under the filters of **license** (engine *and* model/weights compatible with
+   MIT free-redistribution, NFR-LIC-01), **local-first fit** (bundle/runtime
+   size and the *hardware floor* — see new constraint below), and
+   **cgo/single-binary** (cgo/R-03 is now acceptable per the founder; the cost is
+   still weighed, not vetoed). Founder priority is **accuracy**. The decision has
+   a real axis — **classical OCR vs. VLM (vision-language-model) OCR** — with
+   honest trade-offs to weigh:
+   - **Tesseract** — classical; small (tens of MB), CPU-only, mature, integrates
+     via cgo or as a bundled subprocess. Apache-2.0 engine; per-language model
+     (traineddata) licenses vary and must be checked. Good—not-SOTA accuracy;
+     strong on clean Latin print (the Dutch fixture's profile).
+   - **PaddleOCR-VL** (0.9B VLM, Apache-2.0, ~109 languages, ~96% OmniDocBench) —
+     SOTA accuracy, but Python/PyTorch, GB-scale weights, realistically wants a
+     GPU. Fits only as a heavy bundled subprocess with a real hardware floor.
+   - **MinerU 2.5** (1.2B VLM) — SOTA document parsing; **relicensed off AGPLv3**
+     to a *custom* Apache-2.0-based license — its exact text and the model-weights
+     license must be read against NFR-LIC-01 (custom ≠ Apache). Same Python/GPU
+     weight class as PaddleOCR-VL.
+   - **pure-Go / wasm OCR** — keeps the single-binary property but accuracy is
+     weak/immature; likely fails the accuracy priority.
+   The reviewer should also weigh a **two-tier** design: a light default engine
+   (e.g. Tesseract) that satisfies the MVP on CPU, with a VLM engine as an
+   **optional high-accuracy backend behind the same OCR interface** for users
+   with the hardware — so the desktop app's size and hardware floor are not set
+   by a 1B-param model. **Must be resolved before implementation (T-* recognition
+   tasks).**
+2. **Language scope — RESOLVED** by
+   [ADR-0013](../../architecture/ADR-0013-mvp-language-dutch.md): Dutch
+   (Latin script) is the MVP language; CJK/Japanese OCR is a later pack, out of
+   scope here (spec A1). No longer open.
 3. **Trigger & UX (A5/A6/A9)**: auto-OCR-on-open vs. explicit "Recognize text";
    whether per-region **review/correction** is in the first release or a
    fast-follow; the minimal reviewable-unit UI.
@@ -246,3 +272,11 @@ block stage 2:
 - 2026-07-07 — Initial version, written from REQ-10 after the backlog reordering
   pulled OCR ahead of REQ-2 (scanned books are the real use case and REQ-2 has
   nothing to consume without OCR). Ready for stage 2.
+- 2026-07-07 — Founder decisions folded in (no AC changes): MVP language is
+  **Dutch** ([ADR-0013](../../architecture/ADR-0013-mvp-language-dutch.md)),
+  resolving A1 and open question 2; **accuracy** is the stated priority and
+  **cgo is acceptable** (R-03 no longer a veto), reframing the engine ADR (open
+  question 1) around a classical-vs-VLM choice with **Tesseract**,
+  **PaddleOCR-VL**, and **MinerU 2.5** named as candidates. Added a hardware-floor
+  / install-size constraint so a GPU-class VLM can only be an optional backend,
+  not the baseline. Scope and criteria otherwise unchanged.

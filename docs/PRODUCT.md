@@ -24,9 +24,11 @@ in open, portable formats.
 
 ## Users (personas)
 
-- **Immersion reader** — reads a Japanese book, wants segmentation, reading aids,
-  lookup, familiarity marking, sentence mining, and Anki export, then reopens
-  with prior words colored by knowledge.
+- **Immersion reader** — reads a book in a foreign language (Dutch at MVP, per
+  [ADR-0013](architecture/ADR-0013-mvp-language-dutch.md)), wants lookup, reading
+  aids, familiarity marking, sentence mining, and Anki export, then reopens with
+  prior words colored by knowledge. (Harder typologies — unspaced/multi-reading
+  scripts like Japanese — come as later Language Packs.)
 - **Classics student** — opens a scanned Latin source, OCRs it, looks up
   inflected forms resolved to headwords, and annotates, fully offline.
 - **Heritage learner** — opens right-to-left unvocalized text, selects and
