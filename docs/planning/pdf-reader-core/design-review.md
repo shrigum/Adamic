@@ -86,11 +86,11 @@ separate ADR needed. Recorded here so the next person doesn't re-derive it.
 
 | # | Condition | Rationale | Status |
 |---|---|---|---|
-| C1 | **Spike T2 (engine + cgo/wasm build) before any rendering code (T3+).** Prove one real PDF page renders via `go-pdfium` **and** builds for win/mac/linux (record which backend per platform). A failure re-opens ADR-0012/0005. | High risk on the critical path → build first ([rigor rule](../../CRITICAL_PATH_METHOD.md)). | todo |
+| C1 | **Spike T2 (engine + cgo/wasm build) before any rendering code (T3+).** Prove one real PDF page renders via `go-pdfium` **and** builds for win/mac/linux (record which backend per platform). A failure re-opens ADR-0012/0005. | High risk on the critical path → build first ([rigor rule](../../CRITICAL_PATH_METHOD.md)). | **Done** — PASS 2026-07-07; render + all-6-target `CGO_ENABLED=0` build green ([spike result](critical-path.md#t2-spike-result-c1-gate)). |
 | C2 | T1 interface exposes only AC-required commands; may evolve through T7; not frozen until close. | Avoid designing a boundary's details before its shape is known, without losing the parallelizing seam. | todo |
 | C3 | Reading-position store stays a narrow `Save`/`Load` + minimal record; no general repository layer. Swappable for SQLite (ADR-0008) with no AC change. | Justified seam, but guard against it growing into speculative generality. | todo |
 | C4 | Use the `go-pdfium` binding directly inside the Document Engine package; do **not** add an engine-abstraction interface for a hypothetical second engine. | Rule of three: one engine, no second consumer. | todo |
-| C5 | Prefer the **wasm/purego backend** where its measured performance meets the T11 budgets; fall back to cgo only where it doesn't. Record the choice per platform in T2. | Directly reduces R-03; keep the single-binary property where feasible. | todo |
+| C5 | Prefer the **wasm/purego backend** where its measured performance meets the T11 budgets; fall back to cgo only where it doesn't. Record the choice per platform in T2. | Directly reduces R-03; keep the single-binary property where feasible. | **Done (pending T11 perf)** — wasm/purego chosen for all 6 targets in T2; cgo not needed. Perf validation deferred to T11. |
 
 ## Notes for the implementer
 

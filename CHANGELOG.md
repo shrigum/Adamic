@@ -23,6 +23,12 @@ rotates Unreleased into a versioned section when cutting a release (see
   opt-in update check (`adamic update`) against
   [github.com/shrigum/Adamic](https://github.com/shrigum/Adamic) releases — see
   [ADR-0003](docs/architecture/ADR-0003-update-check.md).
+- PDF reader core (REQ-1), work started: the PDF engine is proven end-to-end
+  behind the new `src/document` Document Engine package. It renders real PDF
+  pages via PDFium ([ADR-0012](docs/architecture/ADR-0012-pdf-engine.md)) using
+  the no-cgo WebAssembly backend, cross-compiling for all six desktop targets
+  with `CGO_ENABLED=0` — see the
+  [spike result](docs/planning/pdf-reader-core/critical-path.md#t2-spike-result-c1-gate).
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)

@@ -3,8 +3,10 @@
 - **Stage**: 2 — Critical path analysis ([method](../../CRITICAL_PATH_METHOD.md))
 - **Source spec**: [spec.md](spec.md)
 - **Date**: 2026-07-07
-- **Status**: Draft — awaiting stage 3 (architecture-reviewer). **Blocked on the
-  T2 engine ADR before any rendering code (T5+) starts.**
+- **Status**: In progress (stage 4). Stage 3 approved-with-conditions
+  ([design-review.md](design-review.md)). **C1 gate (T2 spike) is GREEN** — see
+  the [Spike result](#t2-spike-result-c1-gate) below; T3+ rendering code is
+  unblocked.
 
 > **Critical path (41h): T2 → T3 → T4 → T5 → T7 → T9 → T12 → T14**
 > The engine/cgo spike (T2) is High-risk and built first; if it fails, the
@@ -43,7 +45,7 @@ graph LR
 | ID  | Task (outcome) | Est (h) | Depends on | On CP? | Risk | Status | Owner |
 | --- | -------------- | ------- | ---------- | ------ | ---- | ------ | ----- |
 | T1  | Core/frontend **command-interface contract** defined and documented: typed commands `Open`, `PageCount`, `RenderPage(page,scale)`, `Thumbnails`, `GetPosition`/`SetPosition`, with request/response models and error shape. No engine yet — a Go interface + a stub impl the frontend can call. (AC-all foundation; ADR-0005 boundary) | 4 | – | – | Med | todo | — |
-| T2  | **Engine decision + cgo spike (SPIKE, throwaway branch).** ADR chooses MuPDF vs PDFium on licensing (NFR-LIC-01) + capability + build cost; spike proves one page of a real PDF renders to a bitmap via cgo **and** cross-compiles for win/mac/linux via a recorded container toolchain. Outcome: ADR committed + a green build on all 3 targets, or a documented failure that re-opens ADR-0005. (R-03; gates all rendering) | 8 | T1 | ✅ | **High** | todo | — |
+| T2  | **Engine decision + cgo spike (SPIKE).** ADR chooses MuPDF vs PDFium on licensing (NFR-LIC-01) + capability + build cost; spike proves one page of a real PDF renders to a bitmap **and** cross-compiles for win/mac/linux. Outcome: ADR committed + a green build on all 3 targets, or a documented failure that re-opens ADR-0005. (R-03; gates all rendering) | 8 | T1 | ✅ | **High** | **done** | — |
 | T3  | Core **Document Engine: open a PDF + report page count**, wrapping the chosen engine behind the T1 interface; invalid handle is a typed error. (AC1 partial) | 4 | T2 | ✅ | Med | todo | — |
 | T4  | Core **render a single page at a requested scale** to an image the frontend can display; correct dimensions per fit inputs. (AC1, AC4 core) | 5 | T3 | ✅ | Med | todo | — |
 | T5  | Core **virtualized render window**: render only visible + near-visible pages; bounded rendered-page count on a 500-page fixture (not = 500). (AC3, AC11 core) | 5 | T4 | ✅ | **High** | todo | — |
@@ -57,6 +59,41 @@ graph LR
 | T13 | **Graceful error handling**: corrupt/truncated PDF, non-PDF, missing file, password-protected — each a distinct user-facing error, app stays up. (AC9, AC10) | 4 | T3 | – | Med | todo | — |
 | T14 | **Integration + acceptance tests** driving the built app for AC1–AC12, incl. the no-network inspection (AC12) and budget assertions (AC11). | 6 | T12, T13, T11 | ✅ | Med | todo | — |
 | T15 | **Docs sync**: architecture overview (real components replace scaffold), glossary, changelog; engine ADR indexed. | 2 | T14 | – | Low | todo | — |
+
+## T2 spike result (C1 gate)
+
+**Date**: 2026-07-07 · **Verdict**: PASS — T3+ unblocked.
+
+The spike is committed as a *test*, not throwaway code, so the invariant it
+proves stays enforced by CI:
+[src/document/engine_spike_test.go](../../../src/document/engine_spike_test.go).
+It uses the trimmed 4-page Dutch A1 fixture at
+[src/document/testdata/](../../../src/document/testdata/) (image-only scan —
+exercises faithful rasterization, REQ-1).
+
+What was proven, against ADR-0012's two load-bearing claims:
+
+1. **A real page renders with no cgo.** `go-pdfium` v1.19.4 via its
+   `webassembly` (wazero/purego) backend opens the fixture, reports the correct
+   page count (4), and rasterizes page 1 at 150 DPI to a non-blank portrait
+   image. No C toolchain, no separate PDFium binary — the wasm module ships
+   inside the binding.
+2. **It cross-compiles for every target with `CGO_ENABLED=0`.** Green
+   `go build` for windows, darwin, linux × amd64+arm64 (all six). This is the
+   backend choice C5 asked us to record: **wasm/purego on all platforms**; cgo
+   fallback not needed for the reader.
+
+Consequence for **R-03**: substantially defused. The single-binary,
+no-C-toolchain property is *preserved* by the wasm backend — the risk ADR-0005
+flagged (cgo cross-compilation) does not bite for rendering. Remaining
+watch-item: wasm render performance on large documents, measured in T11 against
+the perf budgets; the cgo backend stays available as a fallback only if those
+budgets fail.
+
+New dependencies pulled in (all pure Go, transitively via the binding):
+`klippa-app/go-pdfium`, `tetratelabs/wazero`, `jolestar/go-commons-pool/v2`,
+`google/uuid`, `golang.org/x/{net,text,sys}`. go.mod toolchain bumped to
+`go 1.25.0` by the binding's requirement.
 
 Path check (longest chain):
 - T2→T3→T4→T5→T7→T9→T12→T14 = 8+4+5+5+6+5+3+6 = **41h** (via T1 head +4 = 45h wall, but T1 feeds both branches; CP measured from the binding chain).
