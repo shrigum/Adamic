@@ -9,7 +9,11 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"runtime/debug"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 
@@ -20,10 +24,38 @@ import (
 //go:embed all:assets
 var assets embed.FS
 
+// fatal records a startup failure to a log file next to the executable and
+// exits. In a windowed (-H windowsgui) build there is no console, so a plain
+// log.Fatal would kill the app with no visible reason — the classic "nothing
+// happens on double-click". Writing the reason to adamic-error.log makes every
+// startup failure diagnosable.
+func fatal(format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	if exe, err := os.Executable(); err == nil {
+		logPath := filepath.Join(filepath.Dir(exe), "adamic-error.log")
+		_ = os.WriteFile(logPath, []byte(msg+"\n"), 0o644)
+	}
+	log.Fatal(msg)
+}
+
 func main() {
+	// A panic in a windowed build is otherwise silent; capture it too.
+	defer func() {
+		if r := recover(); r != nil {
+			fatal("panic: %v\n%s", r, debug.Stack())
+		}
+	}()
+
+	// In a windowed (-H windowsgui) build the process has no console, so
+	// os.Stdout/os.Stderr are invalid handles. The PDFium WebAssembly runtime
+	// (wazero) probes those handles when it instantiates and fails with
+	// "GetFileType /dev/stdout: The handle is invalid" — which killed the app
+	// silently on double-click. Point both at NUL so the handles are valid.
+	ensureStdHandles()
+
 	engine, err := document.NewEngine()
 	if err != nil {
-		log.Fatalf("start document engine: %v", err)
+		fatal("start document engine: %v", err)
 	}
 	defer engine.Shutdown()
 
@@ -56,6 +88,6 @@ func main() {
 	})
 
 	if err := wailsApp.Run(); err != nil {
-		log.Fatalf("run: %v", err)
+		fatal("run: %v", err)
 	}
 }
