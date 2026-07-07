@@ -275,7 +275,7 @@ func (e *Engine) RenderPage(id reader.DocumentID, page int, scale reader.Scale) 
 // Thumbnail renders a small image of one page for the panel (AC6). It is a
 // low, fixed zoom; independent caching/prioritization is a T8/T11 concern.
 func (e *Engine) Thumbnail(id reader.DocumentID, page int) (image.Image, error) {
-	return e.RenderPage(id, page, reader.Scale{Zoom: 0.2})
+	return e.RenderPage(id, page, reader.ThumbnailScale())
 }
 
 // SetPosition saves the reading position for an open document so a later Open

@@ -134,6 +134,36 @@ func TestEngineClosedDocument(t *testing.T) {
 	}
 }
 
+// TestEngineThumbnails is T8/AC6: every page produces a thumbnail at the fixed
+// panel width, non-blank, on demand (the engine renders one per call — the
+// panel requests them lazily as it scrolls).
+func TestEngineThumbnails(t *testing.T) {
+	e := newTestEngine(t)
+	doc, err := e.Open(fixturePath(fixture))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer e.Close(doc.ID)
+
+	for p := 0; p < doc.PageInfo.Count; p++ {
+		thumb, err := e.Thumbnail(doc.ID, p)
+		if err != nil {
+			t.Fatalf("Thumbnail(%d): %v", p, err)
+		}
+		if thumb.Bounds().Dx() != reader.ThumbnailWidthPx {
+			t.Errorf("thumbnail %d width = %d, want %d (uniform panel)", p, thumb.Bounds().Dx(), reader.ThumbnailWidthPx)
+		}
+		if isBlank(thumb) {
+			t.Errorf("thumbnail %d is blank", p)
+		}
+	}
+
+	// Out-of-range thumbnail is the same typed error as RenderPage.
+	if _, err := e.Thumbnail(doc.ID, doc.PageInfo.Count); !errors.Is(err, reader.ErrPageOutOfRange) {
+		t.Errorf("thumbnail past last page: want ErrPageOutOfRange, got %v", err)
+	}
+}
+
 // TestEnginePositionRoundTrip is T12/AC7-AC8: a position saved for a document
 // is restored the next time that document is opened, and a never-opened
 // document opens at page 1 (zero position). It uses a temp-dir-backed store so

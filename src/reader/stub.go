@@ -90,7 +90,7 @@ func (s *StubReader) RenderPage(doc DocumentID, page int, scale Scale) (image.Im
 }
 
 func (s *StubReader) Thumbnail(doc DocumentID, page int) (image.Image, error) {
-	return s.RenderPage(doc, page, Scale{Zoom: 0.2})
+	return s.RenderPage(doc, page, ThumbnailScale())
 }
 
 func (s *StubReader) SetPosition(doc DocumentID, pos Position) error {

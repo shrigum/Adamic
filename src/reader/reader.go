@@ -119,6 +119,18 @@ type Viewport struct {
 	HeightPx int
 }
 
+// ThumbnailWidthPx is the fixed pixel width every thumbnail is rendered to, so
+// the thumbnail panel lays out a uniform column regardless of each page's
+// intrinsic size (spec AC6). Height follows from the page's aspect ratio.
+const ThumbnailWidthPx = 160
+
+// ThumbnailScale is the Scale a thumbnail is rendered at: fit-to-width against
+// ThumbnailWidthPx. Defined here (not in the engine) so the stub and the real
+// engine produce identically sized thumbnails.
+func ThumbnailScale() Scale {
+	return Scale{FitWidth: true, Viewport: Viewport{WidthPx: ThumbnailWidthPx}}
+}
+
 // Position is a persisted per-document reading position (glossary: "Reading
 // position"). Page is zero-based. OffsetY is the within-page scroll offset as a
 // fraction of page height (0.0 == top), which is resolution-independent so a

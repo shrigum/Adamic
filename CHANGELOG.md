@@ -48,8 +48,12 @@ rotates Unreleased into a versioned section when cutting a release (see
     only the visible pages plus a small look-ahead and keeps rendered pages in
     an LRU bounded by a page budget, so scrolling a 500-page document stays
     responsive and memory stays bounded (retained pages never approach the
-    document length). This retires the feature's last high-risk item; the
-    numeric budget itself is set later (T11).
+    document length). This retires the feature's last high-risk item.
+  - Fixed-width **thumbnails** (`reader.ThumbnailScale`, T8): every page renders
+    to a uniform panel width, produced on demand.
+  - Committed **performance budgets** (`document` Open/Render/Scroll budgets, T11)
+    set from real measurements and asserted by a test, so a rendering-speed
+    regression fails CI (spec AC11).
 
 <!--
 Versioned release link references (e.g. [Unreleased]: .../compare/v0.1.0...HEAD)
