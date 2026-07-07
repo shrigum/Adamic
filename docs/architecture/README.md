@@ -87,6 +87,7 @@ makes the call during design review.
 | [0009](ADR-0009-familiarity-by-lemma.md) | Familiarity keyed by lemma | Accepted | 2026-07-07 |
 | [0010](ADR-0010-spaced-repetition.md) | Spaced repetition: export-first, in-app review later | Accepted | 2026-07-07 |
 | [0011](ADR-0011-language-pack-boundary.md) | Language Pack plugin boundary | Accepted | 2026-07-07 |
+| [0012](ADR-0012-pdf-engine.md) | PDF rendering engine: PDFium via klippa-app/go-pdfium | Accepted (resolves A&D §4.1; refines 0005's cgo assumption) | 2026-07-07 |
 
 *(Keep this table sorted by number. Adding a row here is part of merging any ADR —
 the docs-maintainer skill checks it.)*
