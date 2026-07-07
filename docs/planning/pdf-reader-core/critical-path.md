@@ -44,10 +44,10 @@ graph LR
 
 | ID  | Task (outcome) | Est (h) | Depends on | On CP? | Risk | Status | Owner |
 | --- | -------------- | ------- | ---------- | ------ | ---- | ------ | ----- |
-| T1  | Core/frontend **command-interface contract** defined and documented: typed commands `Open`, `PageCount`, `RenderPage(page,scale)`, `Thumbnails`, `GetPosition`/`SetPosition`, with request/response models and error shape. No engine yet — a Go interface + a stub impl the frontend can call. (AC-all foundation; ADR-0005 boundary) | 4 | – | – | Med | todo | — |
+| T1  | Core/frontend **command-interface contract** defined and documented: typed commands `Open`, `PageCount`, `RenderPage(page,scale)`, `Thumbnails`, `GetPosition`/`SetPosition`, with request/response models and error shape. No engine yet — a Go interface + a stub impl the frontend can call. (AC-all foundation; ADR-0005 boundary) | 4 | – | – | Med | **done** | — |
 | T2  | **Engine decision + cgo spike (SPIKE).** ADR chooses MuPDF vs PDFium on licensing (NFR-LIC-01) + capability + build cost; spike proves one page of a real PDF renders to a bitmap **and** cross-compiles for win/mac/linux. Outcome: ADR committed + a green build on all 3 targets, or a documented failure that re-opens ADR-0005. (R-03; gates all rendering) | 8 | T1 | ✅ | **High** | **done** | — |
-| T3  | Core **Document Engine: open a PDF + report page count**, wrapping the chosen engine behind the T1 interface; invalid handle is a typed error. (AC1 partial) | 4 | T2 | ✅ | Med | todo | — |
-| T4  | Core **render a single page at a requested scale** to an image the frontend can display; correct dimensions per fit inputs. (AC1, AC4 core) | 5 | T3 | ✅ | Med | todo | — |
+| T3  | Core **Document Engine: open a PDF + report page count**, wrapping the chosen engine behind the T1 interface; invalid handle is a typed error. (AC1 partial) | 4 | T2 | ✅ | Med | **done** | — |
+| T4  | Core **render a single page at a requested scale** to an image the frontend can display; correct dimensions per fit inputs. (AC1, AC4 core) | 5 | T3 | ✅ | Med | **done** | — |
 | T5  | Core **virtualized render window**: render only visible + near-visible pages; bounded rendered-page count on a 500-page fixture (not = 500). (AC3, AC11 core) | 5 | T4 | ✅ | **High** | todo | — |
 | T6  | **Wails v3 desktop shell** builds and runs; frontend scaffold can invoke a stub command over the T1 boundary and show its result. (ADR-0005; AC-all UI foundation) | 6 | T1 | – | **High** | todo | — |
 | T7  | **Frontend fixed-layout viewer**: renders returned page images faithfully; single-page and continuous-scroll modes over the virtualized window. (AC1, AC2, AC3) | 6 | T5, T6 | ✅ | Med | todo | — |
@@ -56,7 +56,7 @@ graph LR
 | T10 | **Reading-position store**: narrow `Save/LoadReadingPosition` + minimal document record (identity = path + content hash), with a **file-backed** implementation behind the interface (spec A3/A4), swappable for SQLite later. (AC7, AC8 core) | 4 | T3 | – | Med | todo | — |
 | T11 | **Establish numeric perf budgets** (startup NFR-PERF-03, 500-page scroll) from the T2 spike measurements; commit them as named constants the tests assert against. (AC11 gate) | 2 | T2 | – | Low | todo | — |
 | T12 | **Wire reading-position save on close/navigate + restore on open**; never-opened doc opens at page 1. (AC7, AC8) | 3 | T9, T10 | ✅ | Med | todo | — |
-| T13 | **Graceful error handling**: corrupt/truncated PDF, non-PDF, missing file, password-protected — each a distinct user-facing error, app stays up. (AC9, AC10) | 4 | T3 | – | Med | todo | — |
+| T13 | **Graceful error handling**: corrupt/truncated PDF, non-PDF, missing file, password-protected — each a distinct user-facing error, app stays up. (AC9, AC10) | 4 | T3 | – | Med | **done** (open-time classification into `*reader.OpenError`; frontend-facing wiring lands with the shell) | — |
 | T14 | **Integration + acceptance tests** driving the built app for AC1–AC12, incl. the no-network inspection (AC12) and budget assertions (AC11). | 6 | T12, T13, T11 | ✅ | Med | todo | — |
 | T15 | **Docs sync**: architecture overview (real components replace scaffold), glossary, changelog; engine ADR indexed. | 2 | T14 | – | Low | todo | — |
 

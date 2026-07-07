@@ -1,0 +1,8 @@
+# Keep Go sources LF in the repo regardless of the checkout platform, so
+# `gofmt -l` and diffs are stable across Windows/macOS/Linux contributors.
+*.go text eol=lf
+
+# Test fixtures are byte-exact: never apply line-ending or text munging to them.
+# A CRLF rewrite would corrupt a PDF and change the bytes a test asserts on.
+*.pdf binary
+src/document/testdata/** -text
