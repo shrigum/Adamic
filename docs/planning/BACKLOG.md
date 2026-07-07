@@ -19,14 +19,23 @@ extraction produces correctly ordered Unicode mapped to page coordinates. REQ-1
 it is specced first. The critical path through a usable product is:
 **REQ-2 → REQ-3 → REQ-4 → REQ-5 → REQ-7 → REQ-8** (extraction → pack runtime →
 lookup → familiarity → coverage → study export), per the Project Management
-Plan. Off-critical-path work (REQ-10 OCR, REQ-11 PDF productivity, REQ-12
-second pack, REQ-9 aids) parallelizes once the REQ-5 data model is stable.
+Plan.
+
+**Reordering decision (2026-07-07):** after REQ-1 shipped runnable, **REQ-10
+(OCR) is pulled ahead of REQ-2**. Rationale: real target documents — including
+the project's own test fixture, a scanned Dutch A1 coursebook — are **image-only
+PDFs with no text layer**, so REQ-2 extraction has nothing to extract from them
+until OCR produces a text layer. OCR is therefore a *precondition* for the
+language layer to work on the actual use case (scanned books), not off-path work.
+REQ-10 feeds REQ-2 (OCR text layer → extraction/mapping consumes it). Revisit if
+a born-digital corpus becomes the priority instead. The rest of the language
+chain (REQ-3 → REQ-4 → …) is unchanged and follows REQ-2.
 
 ## Queue
 
 | REQ | Feature (folder name) | Outcome | Status |
 |---|---|---|---|
-| REQ-1 | `pdf-reader-core` | Open and render a PDF in faithful fixed layout with navigation, zoom, and restored per-document reading position. | **in-flow** (core + frontend logic built and tested; live Wails desktop shell is the remaining step) |
+| REQ-1 | `pdf-reader-core` | Open and render a PDF in faithful fixed layout with navigation, zoom, and restored per-document reading position. | **built** (Go core + Wails v3 desktop shell; `dist/Adamic.exe` runs and opens/renders PDFs. All 15 tasks done; awaiting a tagged release to mark shipped) |
 | REQ-2 | `text-extraction-mapping` | Extract correctly ordered Unicode across LTR/RTL/vertical/unspaced scripts, mapped to on-page coordinates; correct selection and copy. *(Root dependency; highest risk — front-loaded with a Stage 0 extraction spike.)* | backlog |
 | REQ-3 | `language-pack-runtime` | Load offline pack bundles via manifest; expose stable capability interfaces; disable only dependent features when a capability is absent. | backlog |
 | REQ-4 | `word-lookup` | Look up a word by tap/click/selection, resolve surface form → lemma, show definition and reading via the active pack. | backlog |
@@ -35,7 +44,7 @@ second pack, REQ-9 aids) parallelizes once the REQ-5 data model is stable.
 | REQ-7 | `coverage-progress` | Report known-word coverage (page and document) and per-document reading progress. | backlog |
 | REQ-8 | `study-export` | Mine a sentence into a study card; export cards and vocabulary to Anki `.apkg` and CSV. | backlog |
 | REQ-9 | `reading-aids` | Furigana/pinyin/romanization overlays, offline TTS, grammar/morphology, and diacritization, where the active pack provides them. | backlog |
-| REQ-10 | `ocr` | Detect image-only documents and OCR them into a selectable text layer, offline, with per-region review. | backlog |
+| REQ-10 | `ocr` | Detect image-only documents and OCR them into a selectable text layer, offline, with per-region review. | **in-flow** (pulled ahead of REQ-2 — precondition for scanned books; spec next) |
 | REQ-11 | `pdf-productivity` | Annotation as standard PDF objects, page organization/editing, forms, and export/conversion. | backlog |
 | REQ-12 | `pack-extensibility` | Documented pack format, conformance suite, pack management, and the Latin pack added with no core changes. | backlog |
 | REQ-13 | `app-shell` | First-run onboarding, settings, keyboard shortcuts, themes, accessibility, and localization structure. | backlog |
