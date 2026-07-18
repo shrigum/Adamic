@@ -142,6 +142,34 @@ is attractive (keeps our Go code cgo-free without that binding). Index row added
 | C5 | The offline inspection (AC10) must cover a **subprocess** engine if chosen: it is invoked with no network and bundled models only, not just "no `net` imports in Go." | A native subprocess is a code path the Go-import scan alone would miss. | todo |
 | C6 | Build the correction **model + store + binding** (T8, T11) in v1; **defer the per-region review UI (T12)** to a fast-follow unless the founder wants it in v1. Record the choice in the plan. | Cuts the riskiest, most speculative UI scope while still satisfying AC6's storage behavior; drops CP 49h→47h. | **Resolved — founder chose review UI IN v1** (2026-07-07). T12 is on the critical path; active CP = 49h. The C6 *guard* still applies: the review UI is scoped to per-region view + inline text correction (spec A6), not bulk find/replace or document-wide re-flow. |
 
+## Addendum (2026-07-18): recognition-quality amendment re-check
+
+Re-check of the A11/A12/A14 spec amendment and tasks T17–T20, prompted by
+founder review of the T2 output. **Verdict: within the approved design — no
+new ADR, conditions C2–C5 unchanged and still binding.**
+
+- **No new dependency or boundary.** Preprocessing is stdlib image ops or
+  engine-native Tesseract options inside the existing recognizer package
+  (C2's seam); the unit filter is recognizer-internal; the harness is test
+  code + a committed ground-truth fixture file. The spec itself pins the
+  guard: wanting an imaging library re-opens stage 3 — that line is the
+  condition, restated as **C7**.
+- **Non-goal integrity held.** Junk *filtering* was distinguished from text
+  *correction* in the spec (correction still needs Language-Pack resources
+  and stays out); semantic exercise detection stays behind the
+  layout-analysis fence. The amendment strengthens, not erodes, the fences.
+- **Measurement discipline is the right shape** — it mirrors the accepted
+  A8/T15 budget pattern (symbolic constants set from measurement), so AC13/14
+  are testable without invented numbers. Guard (**C8**): techniques are
+  adopted only on harness-measured improvement (A11); "looked better on one
+  page" is not adoption criteria, and the filter must satisfy AC14's
+  zero-deleted-ground-truth-words assertion.
+
+| # | Condition | Rationale | Status |
+|---|---|---|---|
+| C7 | Quality pipeline uses stdlib image ops / engine-native options only; an imaging dependency proposal re-opens stage 3 (ADR). | Dependency discipline (CONTRIBUTING, stage-3 jurisdiction). | todo |
+| C8 | A11 techniques adopted only on T17-harness-measured improvement; unit filter passes AC14's no-deleted-words assertion. | Prevents by-eye tuning and silent word loss. | todo |
+
 ## Notes for the implementer
 
 - The engine binding is confined to the Recognizer package; nothing else imports

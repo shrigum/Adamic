@@ -55,6 +55,17 @@ with the requirement/feature that owns it or the reason it is deferred.
 - **No automatic per-word correction, spell-check, or dictionary snapping** of
   OCR output. Review is manual (A6). Auto-correction needs language resources
   that live behind the Language Pack boundary and is not in this feature.
+  *Clarified 2026-07-18*: suppressing obviously **non-textual junk units**
+  (icon/graphic misreads) by confidence/charset/geometry (A11) is *filtering*,
+  not correction, and is in scope; changing a unit's recognized *text* is not.
+- **No semantic understanding of exercise structure.** The fixture contains
+  letter-scramble exercises (single spaced glyphs to be reordered into a word);
+  recognizing that a region is "letters, not words" is document-structure
+  semantics (see the layout-analysis non-goal) and is out. Mitigation instead
+  (A11): such glyphs come through as ordinary single-character units with the
+  engine's (typically low) confidence, the unit filter does not delete real
+  glyphs, and the per-region review (A6) is the correction path. Revisit only
+  if reviewing scrambles proves too noisy in practice.
 - **No cloud/hosted OCR.** Non-negotiable: fully offline (NFR-OFFLINE-01). An
   online engine is not an alternative to be weighed at stage 3.
 - **No translation.** Out of product scope entirely.
@@ -187,6 +198,45 @@ change one). Low-confidence items are flagged for confirmation before stage 4.
   first (Latin) model ships in core or as/with a pack is an architecture-review
   question at stage 3; the spec flags the boundary so the design does not bake
   language data into the core. *(low confidence — confirm at design review.)*
+- **A11 — The recognizer owns a measured recognition-quality pipeline:
+  raster preprocessing before the engine and unit filtering after it, with
+  every technique adopted or rejected by measurement against ground truth
+  (A12), never by eye.** Added 2026-07-18 after founder review of the T2 spike
+  output found systematic error classes on the fixture: (1) colored answer-chip
+  *borders* touching glyphs break words ("Tot"→"Toi", "Dag"→"dz", correct
+  words at <30 % confidence); (2) **reversed text** (white numerals on solid
+  blue circles) misread as letter junk ("mn", "pd" for 6/7/8/9); (3) solid
+  icons (speech bubbles, pencils) emitted as junk units; (4) single scrambled
+  letters read with word-model bias. Candidate techniques the measurement task
+  weighs: render-DPI choice, grayscale/binarization strategy, saturation-based
+  masking or line-removal of colored decorations, Tesseract config (page
+  segmentation mode, inversion handling, per-region re-recognition of
+  low-confidence single glyphs), and post-filters on confidence, charset, and
+  box geometry. Constraint: preprocessing operates on the rendered raster with
+  stdlib-level image ops or engine-native options — a new imaging dependency
+  is a stage-3 ADR question, not a task-level choice. Filtering must be
+  conservative: it deletes only units that fail *both* a confidence floor and
+  a plausibility check (no letters/digits, or degenerate geometry), so real
+  low-confidence words survive to be reviewed (A6), not silently dropped.
+- **A12 — Recognition quality is a measured, regression-guarded number, not an
+  impression.** At least one fixture page gets a word-level ground truth
+  (text + approximate region class: real text vs. decoration); an automated
+  harness computes (a) the fraction of ground-truth words recognized correctly
+  and (b) the count of junk units in non-text regions, and the acceptance
+  budgets (`OCR_ACCURACY_MIN`, `OCR_JUNK_MAX` — named constants, values set
+  from the measured baseline + achievable improvement, mirroring the A8/perf
+  budget pattern) are asserted in tests (AC13, AC14). Techniques from A11 are
+  adopted only if they move these numbers.
+- **A14 — Recognized-unit boxes are the mouse-over/selection targets of every
+  later feature, so they must stay tight to the printed word and any rendered
+  text overlay must be fitted into its unit's box (both dimensions).** Founder
+  requirement (2026-07-18): hovering/selecting a word for translation must hit
+  the word where it sits in the book. For *this* feature that binds the
+  per-region review UI (A6/T12): it renders a unit's text sized to its box,
+  not at a fixed font size. For REQ-2 (selection) and REQ-4 (tap-to-look-up)
+  it is the handoff guarantee: the box in the T1 contract *is* the hit target;
+  no re-derivation downstream. (A9 unchanged — a full visible text layer is
+  still REQ-2's surface.)
 
 ## Acceptance criteria
 
@@ -209,6 +259,9 @@ scoped to A1 (Latin-script printed OCR) unless stated.
 | AC10 | No code path in this feature performs network I/O (inspection/test): OCR works fully with networking disabled (NFR-OFFLINE-01). | |
 | AC11 | The bundled OCR engine and any bundled model/weights are recorded with their licenses in the project's component/attribution manifest, and each is compatible with MIT free-redistribution (NFR-LIC-01). Test/inspection asserts the manifest entry exists for the shipped engine+model. | |
 | AC12 | OCR output uses the same page-point coordinate space and document-identity key as the reader/position store, so a unit's box is valid at any zoom and re-opening the same file (by path+content-hash) finds its OCR (A2, A4). | |
+| AC13 | On the ground-truthed fixture page (A12), at least `OCR_ACCURACY_MIN` of ground-truth words are recognized correctly (case-normalized match) after the A11 pipeline; the harness test asserts against the named constant. | |
+| AC14 | On the ground-truthed fixture page, at most `OCR_JUNK_MAX` recognized units fall in regions ground-truthed as decoration (icons, chips, ornaments), and **no** ground-truth word is deleted by the unit filter — low-confidence real words survive with their confidence, junk does not (A11, A12). | |
+| AC15 | The per-region review UI renders each unit's text fitted to that unit's box (scaled in both dimensions to the box in page coordinates), so the displayed word visually coincides with the printed word at any zoom (A14, A6). | |
 
 **Error behavior summary** (per
 [CODING_STANDARDS.md](../../CODING_STANDARDS.md#error-handling)): OCR is
@@ -280,3 +333,16 @@ block stage 2:
   **PaddleOCR-VL**, and **MinerU 2.5** named as candidates. Added a hardware-floor
   / install-size constraint so a GPU-class VLM can only be an optional backend,
   not the baseline. Scope and criteria otherwise unchanged.
+- 2026-07-18 — **Recognition-quality amendment** from founder review of the T2
+  spike output (docs/planning/ocr/spike-t2-findings.md and its visual review):
+  systematic error classes on the fixture (chip borders breaking words,
+  reversed white-on-blue numerals, icon junk units, scrambled-letter
+  exercises) are now in scope as a *measured* pipeline — new assumptions
+  A11 (preprocessing + conservative unit filtering, technique-by-measurement),
+  A12 (ground truth + accuracy/junk budgets), A14 (unit boxes are the
+  selection/hover targets; review UI fits text to the box), new criteria
+  AC13–AC15. Non-goals clarified: junk *filtering* is in scope, text
+  *correction* and semantic exercise detection remain out. **Acceptance
+  criteria changed and scope changed materially → critical-path-planner must
+  re-run (stage 2) and the design review must be re-checked for the new
+  tasks.**

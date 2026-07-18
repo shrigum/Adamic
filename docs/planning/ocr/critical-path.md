@@ -2,24 +2,25 @@
 
 - **Stage**: 2 — Critical path analysis ([method](../../CRITICAL_PATH_METHOD.md))
 - **Source spec**: [spec.md](spec.md)
-- **Date**: 2026-07-07
+- **Date**: 2026-07-07; re-planned 2026-07-18 for the recognition-quality spec
+  amendment (A11/A12/A14, AC13–AC15) after founder review of the T2 output.
 - **Status**: Stage 3 complete — APPROVED-WITH-CONDITIONS
   ([design-review.md](design-review.md)); OCR engine decided
   ([ADR-0014](../../architecture/ADR-0014-ocr-engine.md): Tesseract baseline).
-  **C1 gate: the T2 recognition spike must pass before T4+ recognizer code
-  starts.** Condition **C6 resolved — the founder chose the per-region review UI
-  (T12) IN v1**, so the active critical path is the **49h** variant with T12 on
-  the path.
+  **C1 gate passed** (T2 done, [findings](spike-t2-findings.md)). Condition
+  **C6 resolved — the founder chose the per-region review UI (T12) IN v1**.
+  Quality tasks T17–T20 added 2026-07-18; **stage-3 re-check of the additions
+  recorded as an addendum in design-review.md**.
 
-> **Critical path (49h): T1 → T2 → T4 → T5 → T7 → T9 → T11 → T12 → T14 → T16**
-> (T12 review UI is in v1 per the founder's C6 resolution.)
-> The OCR-engine spike (T2) is High-risk and built first: it proves the chosen
-> Tesseract integration recognizes the Dutch fixture, measures per-page latency
-> and bundle size, and confirms the local-first/hardware-floor fit. If it fails,
-> [ADR-0014](../../architecture/ADR-0014-ocr-engine.md) re-opens before
-> downstream recognition, persistence, and UI work is wasted. Off-path tasks
-> (T3 detection, T6 store, T8 corrections model, T10 license manifest, T13 error
-> wiring, T15 budget) parallelize once their dep lands.
+> **Critical path (50h): T1 → T2 → T4 → T5 → T7 → T9 → T11 → T12 → T14 → T16**
+> (T12 review UI is in v1 per the founder's C6 resolution; +1h on T12 for the
+> AC15 fit-to-box requirement.)
+> T1 and the T2 spike are **done** — the engine is proven (subprocess pick,
+> ~2 s/page). The remaining High risks are T4 (transform), T7 (concurrency),
+> and new **T18** (quality experiments — off-path but gating the AC13/AC14
+> budgets via T20). Off-path tasks (T3 detection, T6 store, T8 corrections
+> model, T10 license manifest, T13 error wiring, T15 perf budget, and the new
+> quality track T17→T18/T19→T20) parallelize once their dep lands.
 
 ## Task graph
 
@@ -45,6 +46,14 @@ graph LR
   T13 --> T14
   T15 --> T14
   T10[T10 engine+model license manifest] --> T14
+  T2 --> T17[T17 ground truth + accuracy harness]
+  T17 --> T18[T18 preprocessing/config experiments, measured]
+  T4 --> T18
+  T17 --> T19[T19 conservative unit filter]
+  T4 --> T19
+  T18 --> T20[T20 accuracy/junk budget constants]
+  T19 --> T20
+  T20 --> T14
   T14 --> T16[T16 docs sync: glossary, changelog, ADR indexed]
 ```
 
@@ -63,24 +72,30 @@ graph LR
 | T9  | **Cache & re-OCR policy** (spec A5, AC4, AC5): a recognized document's result is reused on reopen (no re-run); re-OCR of a page is an **explicit** op replacing that page's stored result; reads apply corrections (T8) over engine text. | 4 | T7, T6, T8 | ✅ | Med | todo | — |
 | T10 | **License/attribution manifest** (spec AC11, NFR-LIC-01): record the shipped OCR engine and any bundled model/weights with their licenses in the project component/attribution manifest; a test asserts the entry exists and the license is redistribution-compatible. | 2 | T2 | – | Low | todo | — |
 | T11 | **App binding**: expose the OCR commands the UI needs over the `src/app` JSON boundary — detect/needs-OCR, start run (with progress/cancel), get result (units+boxes+corrections), correct a unit, re-OCR a page. JSON-serializable DTOs; no engine logic. (AC-all UI foundation) | 4 | T9 | ✅ | Med | todo | — |
-| T12 | **Frontend: trigger + progress + per-region review/correction**: a "Recognize text" action, progress/cancel UI, and per-region review where a recognized unit's text is shown and correctable (spec A6, A9, AC6). Uses T11. **In v1 (C6 resolved).** Scoped per C6 guard to per-region view + inline correction — no bulk find/replace or document re-flow. | 6 | T11 | ✅ | Med | todo | — |
+| T12 | **Frontend: trigger + progress + per-region review/correction**: a "Recognize text" action, progress/cancel UI, and per-region review where a recognized unit's text is shown and correctable (spec A6, A9, AC6). **Each unit's text renders fitted to its box in both dimensions (spec A14, AC15)** so the displayed word coincides with the printed word at any zoom. Uses T11. **In v1 (C6 resolved).** Scoped per C6 guard to per-region view + inline correction — no bulk find/replace or document re-flow. | 7 | T11 | ✅ | Med | todo | — |
 | T13 | **Graceful failure + offline wiring end to end**: every soft path (undetectable text, corrupt image, engine/model failure, missing store) is reported and recoverable through the binding; the reader stays up (AC8); no network anywhere in the OCR path (AC10). **Offline inspection covers the Tesseract subprocess, not just Go imports (C5).** | 4 | T11 | – | Med | todo | — |
-| T14 | **Integration + acceptance tests** driving OCR of the Dutch fixture end to end for AC1–AC12, incl. the no-network inspection (AC10), license-manifest check (AC11), and the budget assertion (AC9). | 6 | T13, T12, T15, T10 | ✅ | Med | todo | — |
+| T14 | **Integration + acceptance tests** driving OCR of the Dutch fixture end to end for **AC1–AC15**, incl. the no-network inspection (AC10), license-manifest check (AC11), the perf budget assertion (AC9), and the accuracy/junk budget assertions via the T17 harness (AC13, AC14). | 6 | T13, T12, T15, T10, T20 | ✅ | Med | todo | — |
 | T15 | **Establish per-page perf budget** from the T2 spike measurements; commit as a named constant the tests assert against (spec A8, AC9). Mirrors pdf-reader-core's budgets task. | 2 | T2 | – | Low | todo | — |
 | T16 | **Docs sync**: glossary (`OCR`, `recognized unit`, `text layer`), architecture overview (new OCR component + store), changelog; engine ADR indexed. | 2 | T14 | – | Low | todo | — |
+| T17 | **Ground truth + accuracy harness** (spec A12): word-level ground truth for 1–2 fixture pages chosen to contain the observed error classes (answer chips, reversed numerals, icons, letter scrambles) — each word's text + a region class (text vs. decoration) — plus an automated harness computing (a) % of ground-truth words recognized correctly and (b) junk-unit count in decoration regions. Records the unmodified-pipeline **baseline** the T18/T19 work is measured against. (AC13, AC14 foundation) | 5 | T2 | – | Med | todo | — |
+| T18 | **Preprocessing/config experiments — measured, time-boxed** (spec A11): against the T17 harness, try render DPI, grayscale/binarization, saturation-based masking of colored chrome (chip borders, icons), Tesseract PSM/inversion options, and re-recognition of low-confidence single glyphs; adopt into the recognizer (T4) only what moves the harness numbers; record findings + chosen config. Stdlib/engine-native ops only — wanting an imaging dependency re-opens stage 3. | 6 | T17, T4 | – | **High** | todo | — |
+| T19 | **Conservative unit filter** (spec A11, AC14): drop units failing *both* a confidence floor *and* a plausibility check (no letters/digits, degenerate geometry); applied in the recognizer before results leave it; harness-verified that no ground-truth word is deleted. | 3 | T17, T4 | – | Med | todo | — |
+| T20 | **Accuracy/junk budget constants** (spec A12, AC13, AC14): set `OCR_ACCURACY_MIN` and `OCR_JUNK_MAX` from the post-T18/T19 measured results; commit as named constants the harness/integration tests assert against. Mirrors T15's budget pattern. | 2 | T18, T19 | – | Low | todo | — |
 
-Path check (longest chain):
-- **Active CP (T12 review UI in v1): T1→T2→T4→T5→T7→T9→T11→T12→T14→T16** =
-  3+8+6+5+5+4+4+6+6+2 = **49h**.
-- Tail into T14: T12 branch (T11→T12 = 4+6) **binds over** T13 branch
+Path check (longest chain, re-run 2026-07-18):
+- **Active CP: T1→T2→T4→T5→T7→T9→T11→T12→T14→T16** =
+  3+8+6+5+5+4+4+7+6+2 = **50h** (T12 6→7 for AC15).
+- Tail into T14: T12 branch (T11→T12 = 4+7) **binds over** T13 branch
   (T11→T13 = 4+4), so the critical tail runs through **T12**.
-- Feeder checks (all shorter than the binding predecessor, so none bind):
+- Feeder checks (earliest-finish, all shorter than the binding predecessor):
   - Into T5: T3 branch (T1→T3 = 3+4 = 7) < T4 branch (T1→T2→T4 = 3+8+6 = 17) →
     **T4 binds T5** ✔.
   - Into T7/T9: T6 branch (T1→T6 = 3+5 = 8) and T8 (T1→T6→T8 = 11) < the
     recognition chain reaching T9 (…→T7 = 31) → T6/T8 are feeders ✔.
-  - Into T14: T15/T10 (T1→T2→· = 13 each) and T13 (…→T11→T13 = 41) < the CP
-    reaching T14 (…→T12→T14 = 47) → feeders ✔.
+  - **Quality track**: T17 EF = 11+5 = 16; T18 EF = max(16, T4=17)+6 = 23;
+    T19 EF = max(16, 17)+3 = 20; T20 EF = max(23, 20)+2 = 25.
+  - Into T14: T20 (25), T15/T10 (13 each), T13 (…→T11→T13 = 39) all < the CP
+    reaching T14 via T12 (35+7 = 42) → feeders ✔; T14 EF = 48, T16 = **50**.
 
 ## Risks
 
@@ -115,6 +130,24 @@ Path check (longest chain):
 - **T6 (Med)**: the on-disk OCR schema is a near-term SemVer surface (spec open
   Q4). *Mitigation*: version the envelope from day one (as `library`/`settings`
   do); keep the interface narrow so the SQLite swap is drop-in.
+- **T18 (High, off-path but budget-gating)**: image-quality experiments have
+  uncertain payoff — masking colored chrome can also erase legitimate colored
+  *text* (the fixture's blue headings OCR at 96 % today), and reversed-numeral
+  recovery may not be winnable with engine-native options alone. *Mitigation*:
+  every technique is adopted/rejected strictly by the T17 harness numbers
+  (A11); time-box per technique; the fallback position is honest — budgets
+  (T20) are set at the *achievable* measured level, and what preprocessing
+  can't fix remains visible in per-region review (A6) with its confidence.
+  A T18 "failure" (no technique moves the numbers) does not block the CP; it
+  sets conservative budgets and records why.
+- **T17 (Med)**: ground truth is manual labor and can itself be wrong.
+  *Mitigation*: scope to 1–2 pages picked for error-class coverage; store
+  ground truth as a reviewed committed fixture file; count a word correct on
+  case-normalized match to keep the metric mechanical.
+- **T19 (Med)**: over-filtering silently deletes real words — worse than junk.
+  *Mitigation*: AC14's dual assertion (junk bounded **and** zero ground-truth
+  words deleted) is the regression guard; the filter requires *both* low
+  confidence and implausibility before dropping a unit.
 - **T12 (Med, on CP — in v1 per the founder's C6 resolution)**: per-region
   review UI is the largest UI scope and now sits on the critical path.
   *Mitigation*: it is a thin frontend layer over the already-shipped correction
@@ -133,6 +166,12 @@ Path check (longest chain):
 - **T10 (license manifest)** and **T15 (perf budget)** unlock as soon as the T2
   spike lands and are Low-risk, off-path — good first tasks for a new
   contributor; neither shares files with the CP recognition tasks.
+- **Quality track (added 2026-07-18): T17 unlocks immediately** (T2 is done)
+  and is independent of all in-flight code — a good parallel task now. T18 and
+  T19 need the T4 recognizer and then run alongside T5–T9; T20 is a small
+  closer feeding T14. The track never binds the CP (T20 EF 25 vs. 42 at T14),
+  so quality work steals no schedule from the recognition chain — but T14
+  cannot close without it.
 - **T12 (review UI)** is on the critical path (in v1). It remains the natural
   **deferral valve** if schedule pressure appears — cutting it to a fast-follow
   drops the CP to 47h with no AC lost except the on-screen review portion (its
