@@ -27,6 +27,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+      # The desktop shell (Wails v3, ADR-0005) compiles against GTK4/WebKitGTK
+      # on Linux; Windows and macOS runners need nothing extra.
+      - name: Install Wails Linux dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Vet
         run: go vet ./...
       - name: Test
