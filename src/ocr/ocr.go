@@ -1,8 +1,9 @@
 // Package ocr defines the OCR result contract: the types a recognizer
 // produces, the store persists, and REQ-2 (text extraction/mapping) will
-// consume. This is task T1 of the ocr feature
-// (docs/planning/ocr/critical-path.md) — pure types and their invariants, no
-// engine, no persistence, no I/O.
+// consume (task T1 of docs/planning/ocr/critical-path.md), plus the Recognizer
+// seam an engine implements (task T4, recognizer.go). Pure types, interfaces,
+// and their invariants — no engine binding, no persistence, no I/O; the one
+// shipped engine lives in the tesseract subpackage.
 //
 // Coordinate space (spec A2, AC2, AC12; design-review condition C4): every box
 // is in page points (1/72 inch), the same space as reader.PageSize — origin at
