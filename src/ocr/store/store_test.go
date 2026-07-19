@@ -37,6 +37,7 @@ func sampleResult(id library.DocID) ocr.Result {
 				Failure: &ocr.PageFailure{Kind: ocr.FailureUnreadable, Message: "this page's image could not be rendered"},
 			},
 		},
+		Corrections: []ocr.Correction{{Page: 0, Unit: 1, Text: "Dag"}},
 	}
 }
 

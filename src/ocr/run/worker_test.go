@@ -160,6 +160,9 @@ func TestRunnerCancelPersistsFinishedPagesAndKeepsOldOnes(t *testing.T) {
 			Units: []ocr.RecognizedUnit{{Text: fmt.Sprintf("old-%d", p), Box: ocr.Box{X: 1, Y: 1, W: 2, H: 2}, Confidence: 0.4}},
 		})
 	}
+	// User corrections on the old result: page 0's must die with its re-OCR,
+	// page 2's must survive untouched (T8 model over the T7 merge).
+	old.Corrections = []ocr.Correction{{Page: 0, Unit: 0, Text: "corrected-0"}, {Page: 2, Unit: 0, Text: "corrected-2"}}
 	rec := &gatedRecognizer{gate: make(chan struct{})}
 	st := &recordingStore{seed: &old}
 	r := run.NewRunner(e, rec, st)
@@ -200,6 +203,12 @@ func TestRunnerCancelPersistsFinishedPagesAndKeepsOldOnes(t *testing.T) {
 		if got := stored.Pages[p].Units[0].Text; got != fmt.Sprintf("old-%d", p) {
 			t.Errorf("page %d = %q, want the earlier run's result preserved (never clobbered)", p, got)
 		}
+	}
+	if _, ok := stored.CorrectionFor(0, 0); ok {
+		t.Error("page 0 correction survived that page's re-OCR")
+	}
+	if text, ok := stored.CorrectionFor(2, 0); !ok || text != "corrected-2" {
+		t.Errorf("page 2 correction = %q, %v; want preserved across the partial run (AC6)", text, ok)
 	}
 }
 

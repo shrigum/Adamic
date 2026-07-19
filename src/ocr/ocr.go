@@ -155,4 +155,11 @@ const (
 type Result struct {
 	ID    library.DocID `json:"id"`
 	Pages []PageResult  `json:"pages"`
+
+	// Corrections are the user's text overrides, addressed into Pages and
+	// applied on read (EffectiveUnits); the engine originals in Pages are
+	// never rewritten (task T8, spec A6). Kept sorted by (Page, Unit) with no
+	// duplicates. Part of the same persisted envelope — corrections survive
+	// exactly as long as the engine result they annotate.
+	Corrections []Correction `json:"corrections,omitempty"`
 }

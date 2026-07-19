@@ -138,7 +138,7 @@ func (r *Runner) run(ctx context.Context, cancel context.CancelFunc, done chan s
 
 	var saveErr error
 	result, runErr := Document(ctx, r.engine, r.rec, doc, func(pr ocr.PageResult) {
-		stored = upsertPage(stored, pr)
+		stored.SetPage(pr)
 		if err := r.store.Save(stored); err != nil && saveErr == nil {
 			saveErr = fmt.Errorf("persist OCR result (recognition continued; results are usable this session but will not survive a restart): %w", err)
 		}
@@ -150,24 +150,4 @@ func (r *Runner) run(ctx context.Context, cancel context.CancelFunc, done chan s
 	if onDone != nil {
 		onDone(result, errors.Join(runErr, saveErr))
 	}
-}
-
-// upsertPage returns result with pr replacing its existing entry for that
-// page, or inserted in ascending page order — preserving the Result contract
-// (ascending, no duplicates) over any merge of runs.
-func upsertPage(result ocr.Result, pr ocr.PageResult) ocr.Result {
-	pages := result.Pages
-	for i, existing := range pages {
-		if existing.Page == pr.Page {
-			pages[i] = pr
-			return result
-		}
-		if existing.Page > pr.Page {
-			pages = append(pages[:i], append([]ocr.PageResult{pr}, pages[i:]...)...)
-			result.Pages = pages
-			return result
-		}
-	}
-	result.Pages = append(pages, pr)
-	return result
 }
