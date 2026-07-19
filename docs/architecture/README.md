@@ -112,6 +112,7 @@ makes the call during design review.
 | [0012](ADR-0012-pdf-engine.md) | PDF rendering engine: PDFium via klippa-app/go-pdfium | Accepted (resolves A&D §4.1; refines 0005's cgo assumption) | 2026-07-07 |
 | [0013](ADR-0013-mvp-language-dutch.md) | MVP launch language: Dutch | Accepted (supersedes 0006) | 2026-07-07 |
 | [0014](ADR-0014-ocr-engine.md) | OCR engine: Tesseract (baseline) behind a Recognizer seam | Accepted (refines 0012's no-cgo posture) | 2026-07-07 |
+| [0015](ADR-0015-ocr-engine-bundling.md) | Bundle the pinned OCR engine + MVP model in release artifacts | Accepted (executes 0014's packaging follow-up; 0003 invariant untouched) | 2026-07-20 |
 
 *(Keep this table sorted by number. Adding a row here is part of merging any ADR —
 the docs-maintainer skill checks it.)*

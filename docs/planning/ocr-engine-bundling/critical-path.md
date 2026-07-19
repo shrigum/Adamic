@@ -3,7 +3,13 @@
 - **Stage**: 2 — Critical path analysis ([method](../../CRITICAL_PATH_METHOD.md))
 - **Source spec**: [spec.md](spec.md)
 - **Date**: 2026-07-20
-- **Status**: Ready for stage 3 (architecture-reviewer)
+- **Status**: Stage 3 complete — APPROVED-WITH-CONDITIONS
+  ([design-review.md](design-review.md)); delivery decided by
+  [ADR-0015](../../architecture/ADR-0015-ocr-engine-bundling.md). **C1 gate
+  open**: the T1 spike must pass on all three platforms before T4/T5.
+  Stage-3 rulings folded in: sourcing policy (ADR-0015), macOS layout from
+  T1 evidence (C6), CLI leaves the release artifacts (C5), settings key
+  `ocrEnginePath` additive-only (C4).
 
 > **Critical path (22h): T1 → T4 → T5 → T8 → T9**
 
