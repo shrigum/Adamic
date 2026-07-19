@@ -19,6 +19,9 @@ import (
 
 	"github.com/shrigum/adamic/src/app"
 	"github.com/shrigum/adamic/src/document"
+	"github.com/shrigum/adamic/src/ocr/run"
+	"github.com/shrigum/adamic/src/ocr/store"
+	"github.com/shrigum/adamic/src/ocr/tesseract"
 )
 
 //go:embed all:assets
@@ -62,6 +65,19 @@ func main() {
 	reader := app.New(engine)
 	desktop := &Desktop{}
 
+	// OCR is optional equipment: with no Tesseract on the system the reader
+	// runs fine and the OCR commands report recognition as unavailable
+	// (package app's soft error). The Dutch model is the MVP language
+	// (ADR-0013); the engine pick is ADR-0014.
+	recognizer, ocrErr := tesseract.Find("nld")
+	var runner *run.Runner
+	if ocrErr == nil {
+		runner = run.NewRunner(engine, recognizer, store.FileStore{})
+		defer runner.Close()
+	} else {
+		log.Printf("OCR unavailable: %v", ocrErr)
+	}
+
 	wailsApp := application.New(application.Options{
 		Name:        "Adamic",
 		Description: "A local-first PDF reader with a language-learning layer.",
@@ -78,8 +94,14 @@ func main() {
 	})
 
 	// The dialog service needs the application handle to attach the native
-	// picker to the window; hand it over now that the app exists.
+	// picker to the window; hand it over now that the app exists. Same for
+	// the OCR event emitter: progress flows through Wails events.
 	desktop.app = wailsApp
+	if runner != nil {
+		reader.EnableOCR(engine, runner, func(name string, data any) {
+			wailsApp.Event.Emit(name, data)
+		})
+	}
 
 	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Adamic",

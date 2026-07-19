@@ -73,6 +73,30 @@ func Document(ctx context.Context, e *document.Engine, rec ocr.Recognizer, doc *
 	return result, nil
 }
 
+// Candidates returns the pages of an open document that currently need OCR
+// (spec A3, AC3) — the probe behind a "Recognize text" affordance. It runs
+// detection only, never recognition. A page that cannot be inspected is
+// included: a run would attempt and report it (AC8), and hiding it would
+// misreport the document as fully readable. The error is non-nil only when
+// the document is not open.
+func Candidates(e *document.Engine, doc *reader.Document) ([]int, error) {
+	var pages []int
+	for page := 0; page < doc.PageInfo.Count; page++ {
+		content, err := e.PageContent(doc.ID, page)
+		if err != nil {
+			if errors.Is(err, reader.ErrClosedDocument) {
+				return nil, fmt.Errorf("detect OCR candidates: %w", err)
+			}
+			pages = append(pages, page)
+			continue
+		}
+		if ocr.NeedsOCR(content.Text, content.ImageCoverage) {
+			pages = append(pages, page)
+		}
+	}
+	return pages, nil
+}
+
 // recognizePage runs detection and recognition for one page. candidate is
 // false when the page has a usable native text layer and OCR is skipped
 // (spec A3). Soft per-page problems come back as a PageResult with a typed

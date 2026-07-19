@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"image"
 	"image/png"
+	"sync"
 
 	"github.com/shrigum/adamic/src/reader"
 )
@@ -33,10 +34,20 @@ import (
 // concrete reader.Reader (the document engine in production, a stub in tests).
 type App struct {
 	reader reader.Reader
+
+	// mu guards docs and ocr. docs tracks the open documents by handle so
+	// bindings that need more than the handle (the OCR surface needs the
+	// path and page geometry) can recover the full document.
+	mu   sync.Mutex
+	docs map[string]*reader.Document
+	ocr  *ocrBinding
 }
 
-// New returns an App bound to r.
-func New(r reader.Reader) *App { return &App{reader: r} }
+// New returns an App bound to r. OCR commands are unavailable until
+// EnableOCR is called (they fail softly, saying so).
+func New(r reader.Reader) *App {
+	return &App{reader: r, docs: map[string]*reader.Document{}}
+}
 
 // OpenResult is the JSON shape returned by Open. On success Ok is true and Doc
 // is populated; on a soft failure Ok is false and Error describes it for display.
@@ -94,6 +105,10 @@ func (a *App) Open(path string) OpenResult {
 		// An unexpected error still must not crash the UI; surface it generically.
 		return OpenResult{Ok: false, Error: &OpenErrDTO{Kind: "error", Message: err.Error()}}
 	}
+
+	a.mu.Lock()
+	a.docs[string(doc.ID)] = doc
+	a.mu.Unlock()
 
 	pages := make([]PageSizeDTO, len(doc.PageInfo.Sizes))
 	for i, s := range doc.PageInfo.Sizes {
@@ -161,7 +176,22 @@ func (a *App) GetPosition(id string) (PositionDTO, error) {
 
 // Close releases a document.
 func (a *App) Close(id string) error {
+	a.mu.Lock()
+	delete(a.docs, id)
+	a.mu.Unlock()
 	return a.reader.Close(reader.DocumentID(id))
+}
+
+// doc returns the tracked open document for a handle, for bindings that need
+// more than the handle string.
+func (a *App) doc(id string) (*reader.Document, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	doc, ok := a.docs[id]
+	if !ok {
+		return nil, reader.ErrClosedDocument
+	}
+	return doc, nil
 }
 
 // pngDataURL encodes an image as a base64 PNG data URL for an <img> src.
