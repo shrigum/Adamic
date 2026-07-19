@@ -39,18 +39,23 @@ func (g *gatedRecognizer) RecognizePage(ctx context.Context, img image.Image, si
 // copies, so later upserts can't rewrite history) and can be seeded or made
 // to fail.
 type recordingStore struct {
-	mu       sync.Mutex
-	saves    []ocr.Result
-	seed     *ocr.Result
-	saveErr  error
-	loadOnce bool
+	mu      sync.Mutex
+	saves   []ocr.Result
+	seed    *ocr.Result
+	saveErr error
 }
 
+// Load behaves like the real store: the latest save for id wins, then the
+// seeded pre-existing result, then "no OCR yet".
 func (s *recordingStore) Load(id library.DocID) (ocr.Result, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.loadOnce = true
-	if s.seed != nil {
+	for i := len(s.saves) - 1; i >= 0; i-- {
+		if s.saves[i].ID == id {
+			return snapshot(s.saves[i]), true, nil
+		}
+	}
+	if s.seed != nil && s.seed.ID == id {
 		return snapshot(*s.seed), true, nil
 	}
 	return ocr.Result{}, false, nil

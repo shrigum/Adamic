@@ -60,6 +60,11 @@ type Runner struct {
 	mu     sync.Mutex
 	cancel context.CancelFunc
 	done   chan struct{}
+
+	// storeMu serializes store access between the worker's incremental saves
+	// and the read/correction ops (policy.go), so a load-modify-save never
+	// interleaves with a worker save.
+	storeMu sync.Mutex
 }
 
 // NewRunner returns a Runner over the given engine, recognizer, and store.
@@ -80,21 +85,46 @@ func (r *Runner) Start(doc *reader.Document, onProgress func(Progress), onDone f
 		return fmt.Errorf("start OCR run: %w", err)
 	}
 
+	ctx, cancel, done, err := r.begin()
+	if err != nil {
+		return err
+	}
+	go r.run(ctx, cancel, done, doc, id, onProgress, onDone)
+	return nil
+}
+
+// begin claims the Runner's single run slot: it fails with ErrRunInProgress
+// while a run is in flight, otherwise installs and returns a fresh lifecycle
+// (the caller must hand ctx/cancel/done to a goroutine that closes done).
+func (r *Runner) begin() (context.Context, context.CancelFunc, chan struct{}, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.done != nil {
 		select {
 		case <-r.done:
 		default:
-			return ErrRunInProgress
+			return nil, nil, nil, ErrRunInProgress
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	r.cancel, r.done = cancel, done
+	return ctx, cancel, done, nil
+}
 
-	go r.run(ctx, cancel, done, doc, id, onProgress, onDone)
-	return nil
+// running reports whether a run is in flight.
+func (r *Runner) running() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.done == nil {
+		return false
+	}
+	select {
+	case <-r.done:
+		return false
+	default:
+		return true
+	}
 }
 
 // Cancel cancels the in-flight run, if any, and returns immediately; the
@@ -131,7 +161,9 @@ func (r *Runner) run(ctx context.Context, cancel context.CancelFunc, done chan s
 	// Merge base: the document's stored result, if any, so pages this run
 	// does not reach (cancel) or does not re-run keep their earlier results.
 	// A load failure is soft — it means "no OCR yet" (store contract).
+	r.storeMu.Lock()
 	stored, ok, loadErr := r.store.Load(id)
+	r.storeMu.Unlock()
 	if !ok || loadErr != nil {
 		stored = ocr.Result{ID: id}
 	}
@@ -139,7 +171,10 @@ func (r *Runner) run(ctx context.Context, cancel context.CancelFunc, done chan s
 	var saveErr error
 	result, runErr := Document(ctx, r.engine, r.rec, doc, func(pr ocr.PageResult) {
 		stored.SetPage(pr)
-		if err := r.store.Save(stored); err != nil && saveErr == nil {
+		r.storeMu.Lock()
+		err := r.store.Save(stored)
+		r.storeMu.Unlock()
+		if err != nil && saveErr == nil {
 			saveErr = fmt.Errorf("persist OCR result (recognition continued; results are usable this session but will not survive a restart): %w", err)
 		}
 		if onProgress != nil {
