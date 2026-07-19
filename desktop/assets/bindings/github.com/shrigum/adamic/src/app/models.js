@@ -7,6 +7,58 @@
 import { Create as $Create } from "/wails/runtime.js";
 
 /**
+ * BoxDTO is a page-point rectangle (top-left origin, y down).
+ */
+export class BoxDTO {
+    /**
+     * Creates a new BoxDTO instance.
+     * @param {Partial<BoxDTO>} [$$source = {}] - The source object to create the BoxDTO.
+     */
+    constructor($$source = {}) {
+        if (!("x" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["x"] = 0;
+        }
+        if (!("y" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["y"] = 0;
+        }
+        if (!("w" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["w"] = 0;
+        }
+        if (!("h" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["h"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new BoxDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {BoxDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new BoxDTO(/** @type {Partial<BoxDTO>} */($$parsedSource));
+    }
+}
+
+/**
  * DocumentDTO is the frontend view of an opened document: its handle, page
  * geometry (for laying out the scroll canvas before any page is rendered), and
  * the reading position to restore.
@@ -65,6 +117,221 @@ export class DocumentDTO {
             $$parsedSource["position"] = $$createField3_0($$parsedSource["position"]);
         }
         return new DocumentDTO(/** @type {Partial<DocumentDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * OCRFailureDTO is a page's typed recognition failure, for display.
+ */
+export class OCRFailureDTO {
+    /**
+     * Creates a new OCRFailureDTO instance.
+     * @param {Partial<OCRFailureDTO>} [$$source = {}] - The source object to create the OCRFailureDTO.
+     */
+    constructor($$source = {}) {
+        if (!("kind" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["kind"] = "";
+        }
+        if (!("message" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["message"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OCRFailureDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OCRFailureDTO}
+     */
+    static createFrom($$source = {}) {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new OCRFailureDTO(/** @type {Partial<OCRFailureDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * OCRPageDTO is one candidate page's outcome: units or a typed failure.
+ */
+export class OCRPageDTO {
+    /**
+     * Creates a new OCRPageDTO instance.
+     * @param {Partial<OCRPageDTO>} [$$source = {}] - The source object to create the OCRPageDTO.
+     */
+    constructor($$source = {}) {
+        if (!("page" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["page"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OCRUnitDTO[] | undefined}
+             */
+            this["units"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OCRFailureDTO | null | undefined}
+             */
+            this["failure"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OCRPageDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OCRPageDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType4;
+        const $$createField2_0 = $$createType6;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("units" in $$parsedSource) {
+            $$parsedSource["units"] = $$createField1_0($$parsedSource["units"]);
+        }
+        if ("failure" in $$parsedSource) {
+            $$parsedSource["failure"] = $$createField2_0($$parsedSource["failure"]);
+        }
+        return new OCRPageDTO(/** @type {Partial<OCRPageDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * OCRResultDTO is a document's stored OCR result. HasResult false means the
+ * document has no OCR yet; a store problem reads the same way, softly, with
+ * its message in Error (the document stays readable either way).
+ */
+export class OCRResultDTO {
+    /**
+     * Creates a new OCRResultDTO instance.
+     * @param {Partial<OCRResultDTO>} [$$source = {}] - The source object to create the OCRResultDTO.
+     */
+    constructor($$source = {}) {
+        if (!("hasResult" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["hasResult"] = false;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {OCRPageDTO[] | undefined}
+             */
+            this["pages"] = undefined;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["error"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OCRResultDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OCRResultDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField1_0 = $$createType8;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("pages" in $$parsedSource) {
+            $$parsedSource["pages"] = $$createField1_0($$parsedSource["pages"]);
+        }
+        return new OCRResultDTO(/** @type {Partial<OCRResultDTO>} */($$parsedSource));
+    }
+}
+
+/**
+ * OCRUnitDTO is one recognized unit as the review UI consumes it (spec A6,
+ * A14): Text is the effective text (user correction applied), EngineText the
+ * engine's original, and Box the page-point rectangle that is the unit's
+ * on-page location and hit target.
+ */
+export class OCRUnitDTO {
+    /**
+     * Creates a new OCRUnitDTO instance.
+     * @param {Partial<OCRUnitDTO>} [$$source = {}] - The source object to create the OCRUnitDTO.
+     */
+    constructor($$source = {}) {
+        if (!("text" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["text"] = "";
+        }
+        if (!("engineText" in $$source)) {
+            /**
+             * @member
+             * @type {string}
+             */
+            this["engineText"] = "";
+        }
+        if (!("corrected" in $$source)) {
+            /**
+             * @member
+             * @type {boolean}
+             */
+            this["corrected"] = false;
+        }
+        if (!("box" in $$source)) {
+            /**
+             * @member
+             * @type {BoxDTO}
+             */
+            this["box"] = (new BoxDTO());
+        }
+        if (!("confidence" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["confidence"] = 0;
+        }
+        if (/** @type {any} */(false)) {
+            /**
+             * @member
+             * @type {string | undefined}
+             */
+            this["group"] = undefined;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new OCRUnitDTO instance from a string or object.
+     * @param {any} [$$source = {}]
+     * @returns {OCRUnitDTO}
+     */
+    static createFrom($$source = {}) {
+        const $$createField3_0 = $$createType9;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("box" in $$parsedSource) {
+            $$parsedSource["box"] = $$createField3_0($$parsedSource["box"]);
+        }
+        return new OCRUnitDTO(/** @type {Partial<OCRUnitDTO>} */($$parsedSource));
     }
 }
 
@@ -149,8 +416,8 @@ export class OpenResult {
      * @returns {OpenResult}
      */
     static createFrom($$source = {}) {
-        const $$createField1_0 = $$createType4;
-        const $$createField2_0 = $$createType6;
+        const $$createField1_0 = $$createType11;
+        const $$createField2_0 = $$createType13;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("doc" in $$parsedSource) {
             $$parsedSource["doc"] = $$createField1_0($$parsedSource["doc"]);
@@ -244,7 +511,14 @@ export class PositionDTO {
 const $$createType0 = PageSizeDTO.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = PositionDTO.createFrom;
-const $$createType3 = DocumentDTO.createFrom;
-const $$createType4 = $Create.Nullable($$createType3);
-const $$createType5 = OpenErrDTO.createFrom;
+const $$createType3 = OCRUnitDTO.createFrom;
+const $$createType4 = $Create.Array($$createType3);
+const $$createType5 = OCRFailureDTO.createFrom;
 const $$createType6 = $Create.Nullable($$createType5);
+const $$createType7 = OCRPageDTO.createFrom;
+const $$createType8 = $Create.Array($$createType7);
+const $$createType9 = BoxDTO.createFrom;
+const $$createType10 = DocumentDTO.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = OpenErrDTO.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);

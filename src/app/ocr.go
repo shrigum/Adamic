@@ -45,12 +45,13 @@ type ocrBinding struct {
 	emit   func(name string, data any)
 }
 
-// EnableOCR wires the OCR commands: the engine for detection, the runner for
-// runs/results/corrections, and the event emitter progress flows through.
-// Before this is called (or when the desktop shell finds no OCR engine at
-// startup and never calls it), every OCR command fails softly, saying
-// recognition is unavailable.
-func (a *App) EnableOCR(engine *document.Engine, runner *run.Runner, emit func(name string, data any)) {
+// EnableOCR wires an App's OCR commands: the engine for detection, the
+// runner for runs/results/corrections, and the event emitter progress flows
+// through. Before this is called (or when the desktop shell finds no OCR
+// engine at startup and never calls it), every OCR command fails softly,
+// saying recognition is unavailable. It is a package function, not an App
+// method, so the binding generator never exposes it to the frontend.
+func EnableOCR(a *App, engine *document.Engine, runner *run.Runner, emit func(name string, data any)) {
 	if emit == nil {
 		emit = func(string, any) {}
 	}

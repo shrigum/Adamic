@@ -98,7 +98,7 @@ func main() {
 	// the OCR event emitter: progress flows through Wails events.
 	desktop.app = wailsApp
 	if runner != nil {
-		reader.EnableOCR(engine, runner, func(name string, data any) {
+		app.EnableOCR(reader, engine, runner, func(name string, data any) {
 			wailsApp.Event.Emit(name, data)
 		})
 	}

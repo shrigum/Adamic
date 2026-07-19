@@ -8,7 +8,12 @@ export {
 };
 
 export {
+    BoxDTO,
     DocumentDTO,
+    OCRFailureDTO,
+    OCRPageDTO,
+    OCRResultDTO,
+    OCRUnitDTO,
     OpenErrDTO,
     OpenResult,
     PageSizeDTO,

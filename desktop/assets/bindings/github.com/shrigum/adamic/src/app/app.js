@@ -37,6 +37,90 @@ export function GetPosition(id) {
 }
 
 /**
+ * OCRCancel cancels the in-flight run, if any; the run still ends with its
+ * EventOCRDone (Cancelled true). Already-recognized pages stay persisted
+ * (spec AC7).
+ * @returns {$CancellablePromise<void>}
+ */
+export function OCRCancel() {
+    return $Call.ByID(3273208063);
+}
+
+/**
+ * OCRCandidates returns the zero-based pages of an open document that need
+ * OCR (spec A3) — empty when the document reads natively. Detection only; no
+ * recognition runs.
+ * @param {string} id
+ * @returns {$CancellablePromise<number[]>}
+ */
+export function OCRCandidates(id) {
+    return $Call.ByID(3471254559, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType1($result);
+    }));
+}
+
+/**
+ * OCRCorrect stores a user override for a unit's text (spec A6, AC6). The
+ * engine original is retained; OCRResult shows the override with
+ * Corrected=true. Refused while a run is in flight.
+ * @param {string} id
+ * @param {number} page
+ * @param {number} unit
+ * @param {string} text
+ * @returns {$CancellablePromise<void>}
+ */
+export function OCRCorrect(id, page, unit, text) {
+    return $Call.ByID(3291774285, id, page, unit, text);
+}
+
+/**
+ * OCRRecognizePage explicitly re-OCRs one page (spec A5, AC5), replacing its
+ * stored result on success. Completion arrives as EventOCRPageDone.
+ * @param {string} id
+ * @param {number} page
+ * @returns {$CancellablePromise<void>}
+ */
+export function OCRRecognizePage(id, page) {
+    return $Call.ByID(3832736076, id, page);
+}
+
+/**
+ * OCRResult returns the document's stored OCR result with corrections
+ * applied to each unit's Text (AC6) and the engine originals alongside.
+ * Reading never triggers recognition (AC4).
+ * @param {string} id
+ * @returns {$CancellablePromise<$models.OCRResultDTO>}
+ */
+export function OCRResult(id) {
+    return $Call.ByID(649897232, id).then(/** @type {($result: any) => any} */(($result) => {
+        return $$createType2($result);
+    }));
+}
+
+/**
+ * OCRRevert removes a unit's user override, restoring the engine text.
+ * @param {string} id
+ * @param {number} page
+ * @param {number} unit
+ * @returns {$CancellablePromise<void>}
+ */
+export function OCRRevert(id, page, unit) {
+    return $Call.ByID(4101617807, id, page, unit);
+}
+
+/**
+ * OCRStart begins recognition of a document's candidate pages. It returns
+ * once the run is accepted; progress and completion arrive as
+ * EventOCRProgress/EventOCRDone events. Starting while a run is in flight is
+ * an error the frontend shows.
+ * @param {string} id
+ * @returns {$CancellablePromise<void>}
+ */
+export function OCRStart(id) {
+    return $Call.ByID(829222547, id);
+}
+
+/**
  * Open opens a PDF by path. It never returns a Go error for the expected soft
  * failures (missing/non-PDF/corrupt/encrypted) — those come back as
  * OpenResult{Ok:false} so the frontend shows a message and stays running.
@@ -45,7 +129,7 @@ export function GetPosition(id) {
  */
 export function Open(path) {
     return $Call.ByID(156708099, path).then(/** @type {($result: any) => any} */(($result) => {
-        return $$createType1($result);
+        return $$createType3($result);
     }));
 }
 
@@ -102,4 +186,6 @@ export function Thumbnail(id, page) {
 
 // Private type creation functions
 const $$createType0 = $models.PositionDTO.createFrom;
-const $$createType1 = $models.OpenResult.createFrom;
+const $$createType1 = $Create.Array($Create.Any);
+const $$createType2 = $models.OCRResultDTO.createFrom;
+const $$createType3 = $models.OpenResult.createFrom;

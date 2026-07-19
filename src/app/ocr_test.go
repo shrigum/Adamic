@@ -131,7 +131,7 @@ func newOCRApp(t *testing.T, fixture string) (*App, *stubRecognizer, *eventColle
 	runner := run.NewRunner(engine, rec, &memStore{})
 	t.Cleanup(runner.Close)
 	events := newEventCollector()
-	a.EnableOCR(engine, runner, events.emit)
+	EnableOCR(a, engine, runner, events.emit)
 
 	res := a.Open(fixture)
 	if !res.Ok {
