@@ -7,6 +7,7 @@
 
 import * as App from './bindings/github.com/shrigum/adamic/src/app/app.js';
 import * as Desktop from './bindings/github.com/shrigum/adamic/desktop/desktop.js';
+import { Events } from '/wails/runtime.js';
 
 export const readerBinding = {
   /** @param {string} path */
@@ -28,4 +29,38 @@ export const readerBinding = {
 /** Show the native PDF picker; returns the chosen path or "". */
 export function choosePDF() {
   return Desktop.ChoosePDF();
+}
+
+/** The OCR command surface (ocr T11/T12). */
+export const ocrBinding = {
+  /** @param {string} id */
+  Candidates: (id) => App.OCRCandidates(id),
+  /** @param {string} id */
+  Start: (id) => App.OCRStart(id),
+  Cancel: () => App.OCRCancel(),
+  /** @param {string} id @param {number} page */
+  RecognizePage: (id, page) => App.OCRRecognizePage(id, page),
+  /** @param {string} id */
+  Result: (id) => App.OCRResult(id),
+  /** @param {string} id @param {number} page @param {number} unit @param {string} text */
+  Correct: (id, page, unit, text) => App.OCRCorrect(id, page, unit, text),
+  /** @param {string} id @param {number} page @param {number} unit */
+  Revert: (id, page, unit) => App.OCRRevert(id, page, unit),
+};
+
+/** Event names emitted by the Go core during OCR runs (package app). */
+export const OCR_EVENTS = {
+  progress: 'ocr:progress',
+  done: 'ocr:done',
+  pageDone: 'ocr:pageDone',
+};
+
+/** Subscribe to an OCR event; the handler receives the DTO payload.
+ * @param {string} name @param {(data: any) => void} handler */
+export function onOCREvent(name, handler) {
+  return Events.On(name, (ev) => {
+    const d = ev && ev.data;
+    // The runtime wraps variadic Emit payloads in an array; unwrap ours.
+    handler(Array.isArray(d) && d.length === 1 ? d[0] : d);
+  });
 }

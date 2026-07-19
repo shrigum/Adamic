@@ -5,7 +5,8 @@
 // navigation, zoom/fit, thumbnails, and reading-position save/restore.
 
 import { ViewerModel } from './viewer.js';
-import { readerBinding, choosePDF } from './wailsClient.js';
+import { OCRReviewModel, unitRectPct, fitText, needsAttention } from './ocrReview.js';
+import { readerBinding, choosePDF, ocrBinding, onOCREvent, OCR_EVENTS } from './wailsClient.js';
 
 /** @type {ViewerModel|null} */
 let model = null;
@@ -28,7 +29,12 @@ const el = {
   fitWidth: /** @type {HTMLButtonElement} */ (document.getElementById('fitWidth')),
   fitPage: /** @type {HTMLButtonElement} */ (document.getElementById('fitPage')),
   zoomLabel: /** @type {HTMLSpanElement} */ (document.getElementById('zoomLabel')),
+  ocrAction: /** @type {HTMLButtonElement} */ (document.getElementById('ocrAction')),
+  ocrCancel: /** @type {HTMLButtonElement} */ (document.getElementById('ocrCancel')),
+  ocrReview: /** @type {HTMLButtonElement} */ (document.getElementById('ocrReview')),
 };
+
+const ocrModel = new OCRReviewModel();
 
 function setStatus(msg, isError = false) {
   el.status.textContent = msg;
@@ -55,6 +61,166 @@ async function openPath(path) {
   // Jump to the restored page.
   scrollToPage(model.page);
   updateChrome();
+  await refreshOCR();
+}
+
+// --- OCR: trigger, progress, per-region review (ocr T12) ---
+
+/** Refresh candidates + stored result for the open document (never runs
+ * recognition — reading is cached, spec AC4). OCR being unavailable (no
+ * engine on this system) is soft: the reader works, the buttons stay hidden. */
+async function refreshOCR() {
+  ocrModel.reviewing = false;
+  try {
+    ocrModel.setCandidates(await ocrBinding.Candidates(docId));
+    await refreshOCRResult();
+    ocrModel.status = 'idle';
+  } catch (e) {
+    ocrModel.status = 'unavailable';
+    ocrModel.setCandidates([]);
+    ocrModel.setResult(null);
+  }
+  redrawOCROverlays();
+  updateOCRChrome();
+}
+
+async function refreshOCRResult() {
+  const res = await ocrBinding.Result(docId);
+  ocrModel.setResult(res);
+  if (res && res.error) setStatus(res.error, true);
+}
+
+function updateOCRChrome() {
+  el.ocrAction.hidden = !ocrModel.canRecognize;
+  el.ocrCancel.hidden = ocrModel.status !== 'running';
+  el.ocrReview.hidden = !ocrModel.canReview;
+  el.ocrReview.textContent = ocrModel.reviewing ? 'Hide review' : 'Review text';
+  el.ocrAction.textContent = ocrModel.result ? 'Recognize again' : 'Recognize text';
+}
+
+/** Rebuild the review overlay on every page holder (cheap: only in review
+ * mode; boxes are page-percent so they track any zoom, AC15). */
+function redrawOCROverlays() {
+  for (const layer of el.pages.querySelectorAll('.ocr-layer')) layer.remove();
+  if (!ocrModel.reviewing || !model) return;
+  for (const holder of el.pages.querySelectorAll('.page')) {
+    drawPageOverlay(/** @type {HTMLElement} */ (holder));
+  }
+}
+
+/** @param {HTMLElement} holder */
+function drawPageOverlay(holder) {
+  const page = Number(holder.dataset.page);
+  const pageSize = model.pages[page];
+  const units = ocrModel.unitsForPage(page);
+  const failure = ocrModel.failureForPage(page);
+  if (units.length === 0 && !failure) return;
+
+  const layer = document.createElement('div');
+  layer.className = 'ocr-layer';
+
+  const bar = document.createElement('div');
+  bar.className = 'ocr-page-bar';
+  if (failure) {
+    const note = document.createElement('span');
+    note.className = 'ocr-fail';
+    note.textContent = failure.message;
+    bar.appendChild(note);
+  }
+  const redo = document.createElement('button');
+  redo.textContent = 'Re-OCR page';
+  redo.title = 'Run text recognition again for this page (replaces its result, spec AC5)';
+  redo.addEventListener('click', async () => {
+    try {
+      await ocrBinding.RecognizePage(docId, page);
+      setStatus(`Re-recognizing page ${page + 1}…`);
+    } catch (e) {
+      setStatus(String(e), true);
+    }
+  });
+  bar.appendChild(redo);
+  layer.appendChild(bar);
+
+  units.forEach((u, i) => {
+    const div = document.createElement('div');
+    div.className = 'ocr-unit' + (u.corrected ? ' corrected' : '') + (needsAttention(u) ? ' low' : '');
+    const r = unitRectPct(u.box, { widthPt: pageSize.widthPt, heightPt: pageSize.heightPt });
+    div.style.left = r.left + '%';
+    div.style.top = r.top + '%';
+    div.style.width = r.width + '%';
+    div.style.height = r.height + '%';
+    div.title = `Confidence ${Math.round(u.confidence * 100)}%`
+      + (u.corrected ? ` — engine read “${u.engineText}”. Click to edit; save the engine text to revert.` : '. Click to correct.');
+    const span = document.createElement('span');
+    span.textContent = u.text;
+    div.appendChild(span);
+    div.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      openUnitEditor(layer, div, page, i, u);
+    });
+    layer.appendChild(div);
+  });
+
+  holder.appendChild(layer);
+  fitUnitTexts(layer);
+}
+
+/** Fit each unit's text into its box in both dimensions (AC15): font size
+ * from the displayed box height, then a horizontal scale onto the box width. */
+function fitUnitTexts(layer) {
+  for (const div of layer.querySelectorAll('.ocr-unit')) {
+    const span = div.querySelector('span');
+    if (!span) continue;
+    const boxW = div.clientWidth;
+    const boxH = div.clientHeight;
+    div.style.fontSize = fitText(boxW, boxH, 0).fontSize + 'px';
+    span.style.transform = 'none';
+    const measured = span.scrollWidth;
+    span.style.transform = `scaleX(${fitText(boxW, boxH, measured).scaleX})`;
+  }
+}
+
+/** Inline correction editor over a unit (spec A6): Enter saves the override
+ * (or reverts when the text equals the engine original), Escape cancels. */
+function openUnitEditor(layer, unitDiv, page, unitIndex, u) {
+  if (layer.querySelector('.ocr-edit')) return;
+  const input = document.createElement('input');
+  input.className = 'ocr-edit';
+  input.value = u.text;
+  input.style.left = unitDiv.style.left;
+  input.style.top = unitDiv.style.top;
+  input.style.width = `max(${unitDiv.style.width}, 80px)`;
+  input.style.height = unitDiv.style.height;
+  input.style.fontSize = unitDiv.style.fontSize;
+  layer.appendChild(input);
+  input.focus();
+  input.select();
+
+  let closed = false;
+  const close = () => {
+    if (!closed) {
+      closed = true;
+      input.remove();
+    }
+  };
+  const save = async () => {
+    const text = input.value.trim();
+    close();
+    if (text === '' || text === u.text) return;
+    try {
+      if (text === u.engineText) await ocrBinding.Revert(docId, page, unitIndex);
+      else await ocrBinding.Correct(docId, page, unitIndex, text);
+      await refreshOCRResult();
+      redrawOCROverlays();
+    } catch (e) {
+      setStatus(String(e), true);
+    }
+  };
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') save();
+    else if (ev.key === 'Escape') close();
+  });
+  input.addEventListener('blur', close);
 }
 
 /** Render every page's <img> shell; the visible ones get real images, the rest
@@ -240,10 +406,58 @@ el.fitPage.addEventListener('click', () => {
 el.pages.addEventListener('scroll', reportVisible);
 
 window.addEventListener('resize', () => {
+  redrawOCROverlays();
   if (!model || model.fit === 'custom') return;
   model.setViewport(el.pages.clientWidth - 40, el.pages.clientHeight - 40);
   model.applyFit(model.fit);
   rerenderForZoom();
+});
+
+// --- OCR controls + events (ocr T12) ---
+
+el.ocrAction.addEventListener('click', async () => {
+  try {
+    await ocrBinding.Start(docId);
+    ocrModel.started();
+    setStatus(ocrModel.statusText());
+  } catch (e) {
+    setStatus(String(e), true);
+  }
+  updateOCRChrome();
+});
+
+el.ocrCancel.addEventListener('click', () => {
+  ocrBinding.Cancel().catch(() => {});
+});
+
+el.ocrReview.addEventListener('click', () => {
+  ocrModel.reviewing = !ocrModel.reviewing;
+  redrawOCROverlays();
+  updateOCRChrome();
+});
+
+onOCREvent(OCR_EVENTS.progress, (p) => {
+  ocrModel.onProgress(p);
+  setStatus(ocrModel.statusText());
+  updateOCRChrome();
+});
+
+onOCREvent(OCR_EVENTS.done, async (d) => {
+  ocrModel.onDone(d);
+  setStatus(ocrModel.statusText(), ocrModel.status === 'failed');
+  try {
+    await refreshOCRResult();
+  } catch (e) { /* result stays as-is; the status line already reports */ }
+  redrawOCROverlays();
+  updateOCRChrome();
+});
+
+onOCREvent(OCR_EVENTS.pageDone, async (d) => {
+  setStatus(d.error ? d.error : `Page ${d.page + 1} re-recognized.`, Boolean(d.error));
+  try {
+    await refreshOCRResult();
+  } catch (e) { /* keep the previous result on a failed read */ }
+  redrawOCROverlays();
 });
 
 setStatus('Open a PDF to begin.');

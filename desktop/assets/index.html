@@ -54,11 +54,42 @@
       flex-direction: column; align-items: center; gap: 16px; scroll-behavior: smooth;
     }
     .page {
+      position: relative;
       background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.5); width: min(100%, 900px);
       display: flex; align-items: center; justify-content: center; color: #333;
     }
     .page img { display: block; width: 100%; height: auto; }
     #empty { margin: auto; color: var(--muted); text-align: center; }
+
+    /* OCR review overlay (ocr T12): each recognized unit is drawn over the
+       printed word it came from, its box in page-percent coordinates so it
+       coincides at any zoom (AC15). */
+    .ocr-layer { position: absolute; inset: 0; z-index: 2; }
+    .ocr-unit {
+      position: absolute; display: flex; align-items: center;
+      background: rgba(255,255,255,.92); color: #111;
+      outline: 1px solid rgba(74,144,217,.55); cursor: text;
+      white-space: pre; line-height: 1; overflow: visible;
+    }
+    .ocr-unit > span { display: inline-block; transform-origin: 0 50%; }
+    .ocr-unit.low { outline-color: #d99a3a; background: rgba(255,238,206,.94); }
+    .ocr-unit.corrected { outline-color: #58b368; }
+    .ocr-unit:hover { outline-width: 2px; z-index: 1; }
+    .ocr-edit {
+      position: absolute; z-index: 3; border: 2px solid var(--accent);
+      border-radius: 3px; background: #fff; color: #111; padding: 0 2px;
+      font: inherit; min-width: 60px;
+    }
+    .ocr-page-bar {
+      position: absolute; top: 6px; right: 6px; z-index: 3; display: flex;
+      gap: 6px; align-items: center; font-size: 12px;
+    }
+    .ocr-page-bar button {
+      background: rgba(43,45,49,.9); color: var(--fg); border: 1px solid var(--line);
+      border-radius: 5px; padding: 3px 8px; cursor: pointer; font-size: 12px;
+    }
+    .ocr-page-bar .ocr-fail { color: var(--err); background: rgba(30,31,34,.85);
+      padding: 3px 8px; border-radius: 5px; max-width: 340px; }
   </style>
 </head>
 <body>
@@ -75,6 +106,10 @@
     <button id="zoomIn">+</button>
     <button id="fitWidth">Fit width</button>
     <button id="fitPage">Fit page</button>
+    <span class="sep"></span>
+    <button id="ocrAction" hidden>Recognize text</button>
+    <button id="ocrCancel" hidden>Cancel</button>
+    <button id="ocrReview" hidden>Review text</button>
     <div id="status"></div>
   </div>
   <div id="main">
